@@ -1,7 +1,7 @@
 import fs from 'fs';
 import admin from 'firebase-admin';
 
-const collections = ['users', 'applications', 'scoring_evaluations'];
+const collections = ['users', 'applications', 'scoring_evaluations', 'config'];
 
 async function run() {
   const args = process.argv.slice(2);
@@ -9,36 +9,50 @@ async function run() {
 
   if (command !== 'export' && command !== 'import') {
     console.error('Uso incorrecto. Comandos disponibles:');
-    console.error('  node migrate-database.js export <source-key.json> <output.json>');
-    console.error('  node migrate-database.js import <target-key.json> <input.json>');
+    console.error('  node migrate-database.js export <source-key.json> <output.json> [databaseId]');
+    console.error('  node migrate-database.js import <target-key.json> <input.json> [databaseId]');
     process.exit(1);
   }
 
   const keyPath = args[1];
   const filePath = args[2];
+  const databaseId = args[3];
 
   if (!keyPath || !filePath) {
     console.error('Error: Faltan argumentos.');
-    console.error(`Uso: node migrate-database.js ${command} <archivo-credenciales.json> <archivo-datos.json>`);
+    console.error(`Uso: node migrate-database.js ${command} <archivo-credenciales.json> <archivo-datos.json> [databaseId]`);
     process.exit(1);
   }
 
-  if (!fs.existsSync(keyPath)) {
-    console.error(`Error: El archivo de credenciales no existe en: ${keyPath}`);
-    process.exit(1);
+  // Leer clave de cuenta de servicio o usar ADC
+  let app;
+  let serviceAccount = null;
+  if (keyPath === 'adc' || keyPath === 'default') {
+    console.log('Utilizando credenciales por defecto de la aplicación (ADC)...');
+    app = admin.initializeApp();
+  } else {
+    if (!fs.existsSync(keyPath)) {
+      console.error(`Error: El archivo de credenciales no existe en: ${keyPath}`);
+      process.exit(1);
+    }
+    serviceAccount = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
+    app = admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
   }
-
-  // Leer clave de cuenta de servicio
-  const serviceAccount = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
-
-  // Inicializar Firebase Admin
-  const app = admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-  const db = app.firestore();
+  
+  let db;
+  if (databaseId) {
+    console.log(`Conectando a la base de datos específica: ${databaseId}`);
+    db = admin.getFirestore ? admin.getFirestore(app, databaseId) : app.firestore(databaseId);
+  } else {
+    console.log(`Conectando a la base de datos por defecto (default)`);
+    db = admin.getFirestore ? admin.getFirestore(app) : app.firestore();
+  }
 
   if (command === 'export') {
-    console.log(`Iniciando exportación desde el proyecto: ${serviceAccount.project_id}...`);
+    const projectId = serviceAccount ? serviceAccount.project_id : 'prestamos-mujeres2000';
+    console.log(`Iniciando exportación desde el proyecto: ${projectId}...`);
     const backupData = {};
 
     for (const colName of collections) {
@@ -64,7 +78,8 @@ async function run() {
       process.exit(1);
     }
 
-    console.log(`Iniciando importación al proyecto: ${serviceAccount.project_id}...`);
+    const projectId = serviceAccount ? serviceAccount.project_id : 'prestamos-mujeres2000';
+    console.log(`Iniciando importación al proyecto: ${projectId}...`);
     const backupData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
 
     for (const colName of collections) {
@@ -97,7 +112,7 @@ async function run() {
       console.log(`- ¡Colección ${colName} importada con éxito!`);
     }
 
-    console.log(`\n¡Éxito absoluto! Se completó la importación en el proyecto: ${serviceAccount.project_id}`);
+    console.log(`\n¡Éxito absoluto! Se completó la importación en el proyecto: ${projectId}`);
   }
 }
 
