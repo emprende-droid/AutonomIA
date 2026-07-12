@@ -1,0 +1,129 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required, format: email)
+    //   - role: string (required, enum: ['admin', 'user'])
+    //   - displayName: string (optional)
+    //
+    // Collection: applications
+    // Document ID: {applicationId}
+    // Fields:
+    //   - id: string (required)
+    //   - userId: string (required)
+    //   - userEmail: string (required)
+    //   - status: string (required, enum: ['Draft', 'Pending', 'Approved', 'Rejected'])
+    //   - step: number (required)
+    //   - personalData: map (required)
+    //   - householdFinance: map (required)
+    //   - entrepreneurshipData: map (required)
+    //   - loanDetails: map (required)
+    //   - disbursementInfo: map (required)
+    //   - createdAt: string (required, format: ISO8601)
+    //   - updatedAt: string (required, format: ISO8601)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDefaultAdmin() {
+      return request.auth.token.email == "mariano.imbrogno@gmail.com";
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        isDefaultAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    // Domain Validators
+    function isValidUserBasic(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             isValidEmail(data.email) &&
+             data.role in ['admin', 'user'] &&
+             data.keys().hasOnly(['uid', 'email', 'role', 'displayName']);
+    }
+
+    function isValidUser(data) {
+      return isValidUserBasic(data) && data.uid == request.auth.uid;
+    }
+
+    function isValidApplication(data) {
+      return data.keys().hasAll(['id', 'userId', 'userEmail', 'status', 'step', 'createdAt', 'updatedAt']) &&
+             isValidEmail(data.userEmail) &&
+             data.status in ['Draft', 'Pending', 'Approved', 'Rejected', 'Active', 'Paid'] &&
+             data.step is number &&
+             isValidDateString(data.createdAt) &&
+             isValidDateString(data.updatedAt) &&
+             data.id is string && data.id.size() < 100;
+    }
+
+    function isValidScoringEvaluation(data) {
+      return data.keys().hasAll(['applicationId', 'entrepreneurName', 'date', 'answers', 'totalScore', 'status']) &&
+             data.applicationId is string &&
+             data.entrepreneurName is string &&
+             isValidDateString(data.date) &&
+             data.answers is map &&
+             data.totalScore is number &&
+             data.status in ['APROBADO', 'DESAPROBADO'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'user' || isDefaultAdmin());
+      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role) || 
+                    (isAdmin() && isValidUserBasic(request.resource.data));
+    }
+
+    match /applications/{applicationId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource == null || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidApplication(request.resource.data) && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && 
+                    ( (resource.data.userId == request.auth.uid && request.resource.data.userId == resource.data.userId) || isAdmin() );
+      allow delete: if isAdmin();
+    }
+
+    match /scoring_evaluations/{evaluationId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && isValidScoringEvaluation(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /config/{document} {
+      allow read: if true; // Publicly readable settings
+      allow write: if isAdmin();
+    }
+  }
+}

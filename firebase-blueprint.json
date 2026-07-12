@@ -1,0 +1,70 @@
+{
+  "entities": {
+    "LoanApplication": {
+      "title": "LoanApplication",
+      "description": "A loan application submitted by an entrepreneur.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the application" },
+        "userId": { "type": "string", "description": "UID of the user who created the application" },
+        "userEmail": { "type": "string", "format": "email", "description": "Email of the user" },
+        "status": { 
+          "type": "string", 
+          "enum": ["Draft", "Pending", "Approved", "Rejected", "Active", "Paid"],
+          "description": "Current status of the application"
+        },
+        "step": { "type": "number", "description": "Current step in the wizard" },
+        "personalData": { "type": "object", "description": "Personal details of the applicant" },
+        "householdFinance": { "type": "object", "description": "Financial details of the household" },
+        "entrepreneurshipData": { "type": "object", "description": "Details about the business" },
+        "loanDetails": { "type": "object", "description": "Details of the requested loan" },
+        "disbursementInfo": { "type": "object", "description": "Bank account details for disbursement" },
+        "paymentSchedule": { "type": "object", "description": "Schedule of installments and payments" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of creation" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Timestamp of last update" }
+      },
+      "required": ["id", "userId", "userEmail", "status", "step", "createdAt", "updatedAt"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile information.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "displayName": { "type": "string" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "ScoringEvaluation": {
+      "title": "ScoringEvaluation",
+      "description": "An evaluation of an entrepreneur's scoring.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "applicationId": { "type": "string" },
+        "entrepreneurName": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "answers": { "type": "object" },
+        "totalScore": { "type": "number" },
+        "status": { "type": "string", "enum": ["APROBADO", "DESAPROBADO"] }
+      },
+      "required": ["applicationId", "entrepreneurName", "date", "answers", "totalScore", "status"]
+    }
+  },
+  "firestore": {
+    "/applications/{applicationId}": {
+      "schema": "LoanApplication",
+      "description": "Collection of loan applications."
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of user profiles."
+    },
+    "/scoring_evaluations/{evaluationId}": {
+      "schema": "ScoringEvaluation",
+      "description": "Collection of scoring evaluations."
+    }
+  }
+}

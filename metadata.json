@@ -1,0 +1,6 @@
+{
+  "name": "Microcréditos Emprendedoras",
+  "description": "Sistema integral de gestión de microcréditos para emprendedoras, incluyendo simulación, solicitud y seguimiento de préstamos.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
