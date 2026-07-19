@@ -55,7 +55,8 @@ import {
   ChevronUp,
   ChevronDown,
   ArrowUpDown,
-  Download
+  Download,
+  Calculator
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -1397,6 +1398,193 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
                           <div className="bg-slate-50 p-3 rounded">
                             <span className="block text-[10px] text-slate-500 mb-0.5">Redes Sociales</span>
                             <span className="text-xs text-slate-800 font-semibold">{selectedApp.entrepreneurshipData.socialNetworks}</span>
+                          </div>
+                        )}
+
+                        {/* SECCIÓN 6 — PRESUPUESTO DEL EMPRENDIMIENTO (Planilla de Trabajo) */}
+                        {selectedApp.entrepreneurshipData.products && selectedApp.entrepreneurshipData.products.length > 0 && (
+                          <div className="space-y-2.5 mt-4 pt-4 border-t">
+                            <h5 className="text-[11px] font-bold uppercase text-indigo-700 flex items-center gap-1">
+                              <Calculator className="w-3.5 h-3.5" /> Planilla de Productos / Servicios (Presupuesto)
+                            </h5>
+                            <div className="border border-slate-150 rounded-lg overflow-hidden text-[11px] bg-white shadow-3xs overflow-x-auto">
+                              <Table className="min-w-[650px] lg:min-w-full text-slate-700">
+                                <TableHeader className="bg-slate-50 text-[10px] font-bold uppercase text-slate-500 border-b border-slate-150">
+                                  <TableRow>
+                                    <TableHead className="p-2.5 text-left font-bold text-slate-600">Producto / Servicio</TableHead>
+                                    <TableHead className="p-2.5 text-right font-bold text-slate-600">Costo Unit.</TableHead>
+                                    <TableHead className="p-2.5 text-right font-bold text-slate-600">Precio Venta</TableHead>
+                                    <TableHead className="p-2.5 text-center font-bold text-slate-600">Ganancia Unit.</TableHead>
+                                    <TableHead className="p-2.5 text-center font-bold text-slate-600">Markup %</TableHead>
+                                    <TableHead className="p-2.5 text-right font-bold text-slate-600">Cant. Semanal</TableHead>
+                                    <TableHead className="p-2.5 text-right font-bold text-slate-600">Ganancia Semanal</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody className="divide-y divide-slate-100">
+                                  {selectedApp.entrepreneurshipData.products.map((p) => {
+                                    const uCost = Number(p.unitCost) || 0;
+                                    const uPrice = Number(p.unitPrice) || 0;
+                                    const wQty = Number(p.weeklyQty) || 0;
+                                    const unitGain = uPrice - uCost;
+                                    const totalGain = unitGain * wQty;
+                                    const markup = uCost > 0 ? Math.round((unitGain / uCost) * 100) : 0;
+
+                                    if (!p.name && uCost === 0 && uPrice === 0 && wQty === 0) return null;
+
+                                    return (
+                                      <TableRow key={p.id} className="hover:bg-slate-50/50">
+                                        <TableCell className="p-2.5 font-medium text-slate-800">{p.name || 'Sin nombre'}</TableCell>
+                                        <TableCell className="p-2.5 text-right font-mono">${uCost.toLocaleString('es-AR')}</TableCell>
+                                        <TableCell className="p-2.5 text-right font-mono">${uPrice.toLocaleString('es-AR')}</TableCell>
+                                        <TableCell className={`p-2.5 text-center font-bold font-mono ${unitGain >= 0 ? "text-indigo-700" : "text-red-600"}`}>
+                                          ${unitGain.toLocaleString('es-AR')}
+                                        </TableCell>
+                                        <TableCell className="p-2.5 text-center font-mono text-slate-500">{markup}%</TableCell>
+                                        <TableCell className="p-2.5 text-right font-mono">{wQty.toLocaleString('es-AR')}</TableCell>
+                                        <TableCell className="p-2.5 text-right font-semibold font-mono text-emerald-700">
+                                          ${totalGain.toLocaleString('es-AR')}
+                                        </TableCell>
+                                      </TableRow>
+                                    );
+                                  })}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Fallback de Datos Financieros para Solicitudes Antiguas */}
+                        {(!selectedApp.entrepreneurshipData.products || selectedApp.entrepreneurshipData.products.length === 0) && (
+                          <div className="grid grid-cols-2 gap-4 mt-3 bg-slate-50 p-3 rounded border text-[11px]">
+                            {selectedApp.entrepreneurshipData.type === 'Comercial' && (
+                              <>
+                                <div>
+                                  <span className="block text-[10px] text-slate-500">Costo Compra Promedio</span>
+                                  <span className="font-bold text-slate-800">${(selectedApp.entrepreneurshipData.avgPurchaseCost || 0).toLocaleString('es-AR')}</span>
+                                </div>
+                                <div>
+                                  <span className="block text-[10px] text-slate-500">Precio Venta Promedio</span>
+                                  <span className="font-bold text-slate-800">${(selectedApp.entrepreneurshipData.avgSalePrice || 0).toLocaleString('es-AR')}</span>
+                                </div>
+                                <div className="col-span-2">
+                                  <span className="block text-[10px] text-slate-500">Ventas Semanales Est.</span>
+                                  <span className="font-bold text-slate-800">{selectedApp.entrepreneurshipData.estWeeklySales || 0} unidades</span>
+                                </div>
+                              </>
+                            )}
+                            {selectedApp.entrepreneurshipData.type === 'Productivo' && (
+                              <>
+                                <div>
+                                  <span className="block text-[10px] text-slate-500">Costo Semanal de Insumos</span>
+                                  <span className="font-bold text-slate-800">${(selectedApp.entrepreneurshipData.weeklyInputCost || 0).toLocaleString('es-AR')}</span>
+                                </div>
+                                <div>
+                                  <span className="block text-[10px] text-slate-500">Producción Semanal Est.</span>
+                                  <span className="font-bold text-slate-800">{selectedApp.entrepreneurshipData.weeklyProductionQty || 0} unidades</span>
+                                </div>
+                                <div className="col-span-2">
+                                  <span className="block text-[10px] text-slate-500">Costo Unitario Producción</span>
+                                  <span className="font-bold text-slate-800">${(selectedApp.entrepreneurshipData.unitProductionCost || 0).toLocaleString('es-AR')}</span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Costos Fijos, Viáticos y Margen del Emprendimiento */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 text-[11px]">
+                          <div className="bg-slate-50 p-3 rounded space-y-2 border">
+                            <span className="block text-[10px] font-bold uppercase text-slate-400">Costos de Operación</span>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <span className="block text-[9px] text-slate-500 leading-tight">Costos Fijos (Mensual)</span>
+                                <span className="font-bold text-slate-800">
+                                  ${(Number(selectedApp.entrepreneurshipData.fixedCosts) || 0).toLocaleString('es-AR')}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="block text-[9px] text-slate-500 leading-tight">Viáticos (Semanal)</span>
+                                <span className="font-bold text-slate-800">
+                                  ${(Number(selectedApp.entrepreneurshipData.travelExpenses) || 0).toLocaleString('es-AR')}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {(() => {
+                            const products = selectedApp.entrepreneurshipData.products || [];
+                            const totalWeeklyProfitFromProducts = products.reduce((acc, p) => {
+                              const uC = Number(p.unitCost) || 0;
+                              const uP = Number(p.unitPrice) || 0;
+                              const qty = Number(p.weeklyQty) || 0;
+                              return acc + ((uP - uC) * qty);
+                            }, 0);
+                            const fixedCosts = Number(selectedApp.entrepreneurshipData.fixedCosts) || 0;
+                            const travelExpenses = Number(selectedApp.entrepreneurshipData.travelExpenses) || 0;
+                            const netWeeklyCalculated = totalWeeklyProfitFromProducts - fixedCosts - travelExpenses;
+                            const netMonthlyCalculated = netWeeklyCalculated * 4;
+
+                            return (
+                              <div className="bg-emerald-50/60 border border-emerald-200/80 p-3 rounded space-y-1">
+                                <span className="block text-[10px] font-bold uppercase text-emerald-800">Ganancias Netas Calculadas</span>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <span className="block text-[9px] text-emerald-700">Semanal Neto</span>
+                                    <span className="font-black text-emerald-950 text-[13px]">
+                                      ${netWeeklyCalculated.toLocaleString('es-AR')}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="block text-[9px] text-indigo-700">Mensual Neto (x4)</span>
+                                    <span className="font-black text-indigo-950 text-[13px]">
+                                      ${netMonthlyCalculated.toLocaleString('es-AR')}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+
+                        {/* REGISTRO HISTÓRICO DE VENTAS (ÚLTIMOS 3 MESES) */}
+                        {selectedApp.entrepreneurshipData.accountingMonths && selectedApp.entrepreneurshipData.accountingMonths.length > 0 && (
+                          <div className="space-y-2 mt-4 pt-4 border-t">
+                            <h5 className="text-[11px] font-bold uppercase text-slate-500 flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5 text-slate-400" /> Registro Histórico de Ventas (Últimos 3 Meses)
+                            </h5>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              {selectedApp.entrepreneurshipData.accountingMonths.map((m, idx) => {
+                                const billed = Number(m.totalBilled) || 0;
+                                const profit = Number(m.profit) || 0;
+                                
+                                if (!m.productOrService && billed === 0 && profit === 0) return null;
+
+                                return (
+                                  <div key={`${m.period}-${idx}`} className="bg-white border border-slate-150 rounded-lg p-2.5 space-y-1.5 shadow-3xs">
+                                    <div className="flex items-center justify-between border-b pb-1">
+                                      <span className="font-bold text-slate-700 text-[11px]">{m.period}</span>
+                                      <span className="text-[8px] px-1.5 py-0.2 bg-slate-50 text-slate-500 rounded-full">Historial</span>
+                                    </div>
+                                    <div className="space-y-1 text-[10px]">
+                                      <div>
+                                        <span className="block text-[9px] text-slate-400">Producto / Servicio</span>
+                                        <span className="font-semibold text-slate-700 truncate block">{m.productOrService || 'No especificado'}</span>
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-1 pt-1 border-t border-slate-50">
+                                        <div>
+                                          <span className="block text-[8px] text-slate-400">Facturado</span>
+                                          <span className="font-bold text-slate-700">${billed.toLocaleString('es-AR')}</span>
+                                        </div>
+                                        <div>
+                                          <span className="block text-[8px] text-emerald-600">Ganancia</span>
+                                          <span className="font-bold text-emerald-700">${profit.toLocaleString('es-AR')}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
                         )}
                       </div>
