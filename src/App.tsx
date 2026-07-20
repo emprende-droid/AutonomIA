@@ -388,7 +388,25 @@ export default function App() {
           const userDoc = await getDoc(userDocRef);
           
           if (!userDoc.exists()) {
-            const role = currentUser.email === "mariano.imbrogno@gmail.com" ? "admin" : "user";
+            let role: "admin" | "user" = currentUser.email === "mariano.imbrogno@gmail.com" ? "admin" : "user";
+            
+            // Check if there is an existing user document with this email to inherit their role
+            if (currentUser.email) {
+              try {
+                const usersRef = collection(db, "users");
+                const qEmail = query(usersRef, where("email", "==", currentUser.email));
+                const emailSnap = await getDocs(qEmail);
+                if (!emailSnap.empty) {
+                  const existingUser = emailSnap.docs[0].data();
+                  if (existingUser && (existingUser.role === "admin" || existingUser.role === "user")) {
+                    role = existingUser.role;
+                  }
+                }
+              } catch (err) {
+                console.warn("Could not query existing email to inherit role:", err);
+              }
+            }
+
             await setDoc(userDocRef, {
               uid: currentUser.uid,
               email: currentUser.email || "invitado@mujeres2000.org",

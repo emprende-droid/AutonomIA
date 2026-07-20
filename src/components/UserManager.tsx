@@ -5,7 +5,9 @@ import {
   query, 
   orderBy, 
   doc, 
-  updateDoc 
+  updateDoc,
+  where,
+  getDocs
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { UserProfile } from "../types";
@@ -38,8 +40,35 @@ export default function UserManager() {
   useEffect(() => {
     const q = query(collection(db, "users"), orderBy("email", "asc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const usersData = snapshot.docs.map(doc => ({ ...doc.data() } as UserProfile));
-      setUsers(usersData);
+      const rawUsersData = snapshot.docs.map(doc => ({ ...doc.data() } as UserProfile));
+      
+      // Filter out guest testing accounts and empty emails
+      const validUsers = rawUsersData.filter(user => 
+        user.email && 
+        user.email !== "invitado@mujeres2000.org"
+      );
+
+      // Deduplicate by email address
+      const uniqueUsersMap = new Map<string, UserProfile>();
+      validUsers.forEach(user => {
+        const emailKey = user.email.toLowerCase().trim();
+        const existing = uniqueUsersMap.get(emailKey);
+        if (!existing) {
+          uniqueUsersMap.set(emailKey, { ...user });
+        } else {
+          // If any of the duplicate records has the 'admin' role, make sure the displayed one does too
+          if (user.role === 'admin') {
+            existing.role = 'admin';
+          }
+          // Preserve display name if the current one has it but the existing doesn't
+          if (!existing.displayName && user.displayName) {
+            existing.displayName = user.displayName;
+          }
+        }
+      });
+
+      const uniqueUsers = Array.from(uniqueUsersMap.values());
+      setUsers(uniqueUsers);
       setLoading(false);
     }, (error) => {
       setLoading(false);
@@ -53,13 +82,28 @@ export default function UserManager() {
 
     const newRole = user.role === 'admin' ? 'user' : 'admin';
     
-    // UI Confirmation is better but window.confirm is unreliable in iframes
     setUpdatingIds(prev => ({ ...prev, [user.uid]: true }));
 
     try {
-      await updateDoc(doc(db, "users", user.uid), {
-        role: newRole
-      });
+      // Find all user documents with this email address and update their role synchronously
+      const usersRef = collection(db, "users");
+      const qEmail = query(usersRef, where("email", "==", user.email));
+      const emailSnap = await getDocs(qEmail);
+      
+      if (emailSnap.empty) {
+        // Fallback if no matching document by email (should not happen)
+        await updateDoc(doc(db, "users", user.uid), {
+          role: newRole
+        });
+      } else {
+        const updatePromises = emailSnap.docs.map(docSnap => 
+          updateDoc(doc(db, "users", docSnap.id), {
+            role: newRole
+          })
+        );
+        await Promise.all(updatePromises);
+      }
+      
       toast.success(`Rol de ${user.email} actualizado a ${newRole === 'admin' ? 'Administrador' : 'Usuario'}`);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
