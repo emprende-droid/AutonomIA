@@ -84,6 +84,7 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedDeleteIds, setSelectedDeleteIds] = useState<string[]>([]);
   const [showMultiDeleteConfirm, setShowMultiDeleteConfirm] = useState(false);
+  const [deletingAppIds, setDeletingAppIds] = useState<string[]>([]);
 
   type SortKey = 'loanNumber' | 'name' | 'amount' | 'scoring' | 'date' | 'status';
   const [sortField, setSortField] = useState<SortKey>('date');
@@ -196,10 +197,23 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
 
   // Auto-fill/validate sequential loanNumber for existing non-draft applications on mount / updates
   useEffect(() => {
-    if (loading || applications.length === 0) return;
+    const activeApps = applications.filter(app => !deletingAppIds.includes(app.id));
+    if (loading || activeApps.length === 0) return;
+
+    const isNotFoundError = (err: any): boolean => {
+      if (!err) return false;
+      const errMsg = String(err.message || err).toLowerCase();
+      return (
+        err.code === 'not-found' ||
+        err.code === 5 ||
+        errMsg.includes('not-found') ||
+        errMsg.includes('not found') ||
+        errMsg.includes('no document to update')
+      );
+    };
     
     // 1. Clean up any drafts that mistakenly have a loanNumber
-    const draftsWithNumber = applications.filter(app => app.status === "Draft" && app.loanNumber !== undefined);
+    const draftsWithNumber = activeApps.filter(app => app.status === "Draft" && app.loanNumber !== undefined);
     if (draftsWithNumber.length > 0) {
       const cleanDrafts = async () => {
         for (const app of draftsWithNumber) {
@@ -207,8 +221,12 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
             await updateDoc(doc(db, "applications", app.id), {
               loanNumber: deleteField()
             });
-          } catch (err) {
-            console.error(`Failed to remove incorrect loanNumber from draft app ${app.id}:`, err);
+          } catch (err: any) {
+            if (isNotFoundError(err)) {
+              console.warn(`Could not remove loanNumber from draft app ${app.id} because it was not found in Firestore (likely deleted):`, err.message || err);
+            } else {
+              console.error(`Failed to remove incorrect loanNumber from draft app ${app.id}:`, err);
+            }
           }
         }
       };
@@ -216,7 +234,7 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
     }
 
     // 2. Renumber submitted (non-draft) loans sequentially in chronological order
-    const submittedApps = applications.filter(app => app.status !== "Draft");
+    const submittedApps = activeApps.filter(app => app.status !== "Draft");
     
     // Sort submitted applications chronologically by createdAt
     const sortedSubmitted = [...submittedApps].sort((a, b) => 
@@ -236,15 +254,19 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
               await updateDoc(doc(db, "applications", app.id), {
                 loanNumber: correctNumber
               });
-            } catch (err) {
-              console.error(`Failed to assign correct loan number to app ${app.id}:`, err);
+            } catch (err: any) {
+              if (isNotFoundError(err)) {
+                console.warn(`Could not assign correct loan number to app ${app.id} because it was not found in Firestore (likely deleted):`, err.message || err);
+              } else {
+                console.error(`Failed to assign correct loan number to app ${app.id}:`, err);
+              }
             }
           }
         }
       };
       assignNumbers();
     }
-  }, [loading, applications]);
+  }, [loading, applications, deletingAppIds]);
 
   const navigateToScoring = (appId: string) => {
     setScoringAppId(appId);
@@ -256,6 +278,7 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
   };
 
   const deleteApplicationAndData = async (appId: string) => {
+    setDeletingAppIds(prev => [...prev, appId]);
     try {
       // 1. Delete matching scoring evaluations
       const relatedEvals = evaluations.filter(e => e.applicationId === appId);
@@ -282,6 +305,8 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
     } catch (error) {
       console.error("Error deleting application:", error);
       toast.error("Error al eliminar la solicitud. Por favor, intenta de nuevo.");
+    } finally {
+      setDeletingAppIds(prev => prev.filter(id => id !== appId));
     }
   };
 
@@ -322,6 +347,8 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
       };
       if (newStatus === 'Approved') {
         updateData.approvedAt = new Date().toISOString();
+      } else if (newStatus === 'Rejected') {
+        updateData.rejectedAt = new Date().toISOString();
       }
       await updateDoc(doc(db, "applications", id), updateData);
       if (selectedApp?.id === id) {
@@ -729,6 +756,7 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
   };
 
   const deleteMultipleApplicationsAndData = async (ids: string[]) => {
+    setDeletingAppIds(prev => [...prev, ...ids]);
     try {
       let deletedCount = 0;
       for (const appId of ids) {
@@ -758,6 +786,8 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
     } catch (error) {
       console.error("Error deleting multiple applications:", error);
       toast.error("Error al eliminar los préstamos seleccionados.");
+    } finally {
+      setDeletingAppIds(prev => prev.filter(id => !ids.includes(id)));
     }
   };
 
@@ -781,6 +811,18 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
         toast.info("No hay solicitudes en la base de datos para numerar.");
         return;
       }
+
+      const isNotFoundError = (err: any): boolean => {
+        if (!err) return false;
+        const errMsg = String(err.message || err).toLowerCase();
+        return (
+          err.code === 'not-found' ||
+          err.code === 5 ||
+          errMsg.includes('not-found') ||
+          errMsg.includes('not found') ||
+          errMsg.includes('no document to update')
+        );
+      };
       
       // Clean drafts with numbers
       const draftsWithNumber = applications.filter(app => app.status === "Draft" && app.loanNumber !== undefined);
@@ -789,8 +831,12 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
           await updateDoc(doc(db, "applications", app.id), {
             loanNumber: deleteField()
           });
-        } catch (err) {
-          console.error(`Failed to remove incorrect loanNumber from draft: ${app.id}`, err);
+        } catch (err: any) {
+          if (isNotFoundError(err)) {
+            console.warn(`Could not remove loanNumber from draft app ${app.id} during manual renumbering because it was not found:`, err.message || err);
+          } else {
+            console.error(`Failed to remove incorrect loanNumber from draft: ${app.id}`, err);
+          }
         }
       }
 
@@ -804,10 +850,19 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
         const app = sorted[i];
         const correctNumber = i + 1;
         if (app.loanNumber !== correctNumber) {
-          await updateDoc(doc(db, "applications", app.id), {
-            loanNumber: correctNumber
-          });
-          updatedCount++;
+          try {
+            await updateDoc(doc(db, "applications", app.id), {
+              loanNumber: correctNumber
+            });
+            updatedCount++;
+          } catch (err: any) {
+            if (isNotFoundError(err)) {
+              console.warn(`Could not assign correct loan number to app ${app.id} during manual renumbering because it was not found:`, err.message || err);
+            } else {
+              console.error(`Failed to assign correct loan number to app ${app.id}:`, err);
+              throw err;
+            }
+          }
         }
       }
       
@@ -1308,9 +1363,22 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
                             </TableCell>
                             <TableCell className="text-xs text-slate-500 whitespace-nowrap">
                               <div>Creada: {new Date(app.createdAt).toLocaleDateString()}</div>
+                              
+                              {app.status !== 'Draft' && (
+                                <div className="text-slate-500 mt-0.5">
+                                  Enviada: {new Date(app.submittedAt || app.createdAt).toLocaleDateString()}
+                                </div>
+                              )}
+
                               {["Approved", "Active", "Paid"].includes(app.status) && (
                                 <div className="text-green-600 font-medium mt-0.5">
                                   Aprobada: {new Date(app.approvedAt || app.paymentSchedule?.startDate || app.updatedAt || app.createdAt).toLocaleDateString()}
+                                </div>
+                              )}
+
+                              {app.status === 'Rejected' && (
+                                <div className="text-red-600 font-medium mt-0.5">
+                                  Rechazada: {new Date(app.rejectedAt || app.updatedAt || app.createdAt).toLocaleDateString()}
                                 </div>
                               )}
                             </TableCell>

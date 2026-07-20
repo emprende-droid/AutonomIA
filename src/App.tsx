@@ -868,6 +868,7 @@ export default function App() {
         ...application,
         loanNumber,
         status: "Pending",
+        submittedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
       // Reset or redirect
@@ -1186,25 +1187,41 @@ export default function App() {
                                "Pendiente de Revisión"}
                             </Badge>
                           </div>
-                          {["Pending", "Draft", "Rejected"].includes(selectedApp.status) ? (
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-slate-500">Fecha de solicitud:</span>
-                              <span className="text-sm text-slate-900">{new Date(selectedApp.createdAt).toLocaleDateString()}</span>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="text-sm text-slate-500">Fecha de solicitud:</span>
-                                <span className="text-sm text-slate-900">{new Date(selectedApp.createdAt).toLocaleDateString()}</span>
+                          {(() => {
+                            return (
+                              <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-sm text-slate-500">Fecha de creación:</span>
+                                  <span className="text-sm text-slate-900">{new Date(selectedApp.createdAt).toLocaleDateString()}</span>
+                                </div>
+                                
+                                {selectedApp.status !== "Draft" && (
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm text-slate-500">Fecha de envío:</span>
+                                    <span className="text-sm text-slate-900">{new Date(selectedApp.submittedAt || selectedApp.createdAt).toLocaleDateString()}</span>
+                                  </div>
+                                )}
+
+                                {["Approved", "Active", "Paid"].includes(selectedApp.status) && (
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm text-slate-500">Fecha de aprobación:</span>
+                                    <span className="text-sm text-slate-900 font-medium text-green-700">
+                                      {new Date(selectedApp.approvedAt || selectedApp.paymentSchedule?.startDate || selectedApp.updatedAt || selectedApp.createdAt).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {selectedApp.status === "Rejected" && (
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm text-slate-500">Fecha de rechazo:</span>
+                                    <span className="text-sm text-red-600 font-medium">
+                                      {new Date(selectedApp.rejectedAt || selectedApp.updatedAt || selectedApp.createdAt).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-500">Fecha de aprobación:</span>
-                                <span className="text-sm text-slate-900 font-medium text-green-700">
-                                  {new Date(selectedApp.approvedAt || selectedApp.paymentSchedule?.startDate || selectedApp.updatedAt || selectedApp.createdAt).toLocaleDateString()}
-                                </span>
-                              </div>
-                            </>
-                          )}
+                            );
+                          })()}
                         </div>
 
                         {settings?.whatsappNumber && (
@@ -1410,8 +1427,12 @@ export default function App() {
                                     </Badge>
                                   )}
                                   <span className="font-bold text-slate-900 text-base md:text-lg">
-                                    {["Pending", "Draft", "Rejected"].includes(app.status)
-                                      ? `Solicitud de Préstamo - Enviada: ${new Date(app.createdAt).toLocaleDateString()}`
+                                    {app.status === "Draft"
+                                      ? `Solicitud de Préstamo - Borrador: ${new Date(app.createdAt).toLocaleDateString()}`
+                                      : app.status === "Pending"
+                                      ? `Solicitud de Préstamo - Enviada: ${new Date(app.submittedAt || app.createdAt).toLocaleDateString()}`
+                                      : app.status === "Rejected"
+                                      ? `Solicitud de Préstamo - Rechazada: ${new Date(app.rejectedAt || app.updatedAt || app.createdAt).toLocaleDateString()}`
                                       : `Préstamo Aprobado - Fecha: ${new Date(app.approvedAt || app.paymentSchedule?.startDate || app.updatedAt || app.createdAt).toLocaleDateString()}`
                                     }
                                   </span>

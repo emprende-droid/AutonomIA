@@ -249,6 +249,8 @@ export interface LoanApplication {
   createdAt: string;
   updatedAt: string;
   approvedAt?: string;
+  submittedAt?: string;
+  rejectedAt?: string;
   loanNumber?: number;
 }
 
