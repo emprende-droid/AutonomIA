@@ -1,4 +1,15 @@
-import { AppSettings } from "../types";
+import { AppSettings, InstitutionalData } from "../types";
+
+export const DEFAULT_INSTITUTIONAL_DATA: InstitutionalData = {
+  orgName: "Asociación Civil Mujeres 2000",
+  legalAddress: "Calle Chubut Nº 1189, Ciudad de San Isidro, Provincia de Buenos Aires",
+  website: "www.mujeres2000.org.ar",
+  phone: "011 15 5709 4754",
+  repName: "Maria Agustina Pacheco",
+  repDni: "31.163.819",
+  repRole: "Presidente",
+  signatureLocation: "Tigre, Provincia de Buenos Aires, República Argentina"
+};
 
 export const DEFAULT_SETTINGS: AppSettings = {
   loanProducts: [
@@ -62,6 +73,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   ],
   whatsappNumber: "+5491100000000",
   allowMultipleLoans: false,
+  institutionalData: DEFAULT_INSTITUTIONAL_DATA,
   scoringConfig: {
     passingScore: 80,
     questions: [

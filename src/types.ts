@@ -219,6 +219,17 @@ export interface ScoringEvaluation {
   status: 'APROBADO' | 'DESAPROBADO';
 }
 
+export interface InstitutionalData {
+  orgName: string;
+  legalAddress: string;
+  website: string;
+  phone: string;
+  repName: string;
+  repDni: string;
+  repRole: string;
+  signatureLocation: string;
+}
+
 export interface AppSettings {
   loanProducts: LoanProduct[];
   neighborhoods: string[];
@@ -228,6 +239,7 @@ export interface AppSettings {
   salesPlaces?: string[];
   whatsappNumber?: string;
   allowMultipleLoans?: boolean;
+  institutionalData?: InstitutionalData;
   scoringConfig: {
     questions: ScoringQuestion[];
     passingScore: number;

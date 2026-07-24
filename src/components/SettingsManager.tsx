@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../firebase";
-import { AppSettings, LoanProduct, ScoringQuestion } from "../types";
-import { DEFAULT_SETTINGS } from "../lib/defaultSettings";
+import { AppSettings, LoanProduct, ScoringQuestion, InstitutionalData } from "../types";
+import { DEFAULT_SETTINGS, DEFAULT_INSTITUTIONAL_DATA } from "../lib/defaultSettings";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Save, RotateCcw, ChevronDown, ChevronUp, Users, ClipboardList, Wallet, Target } from "lucide-react";
+import { Plus, Trash2, Save, RotateCcw, ChevronDown, ChevronUp, Users, ClipboardList, Wallet, Target, Building2, Globe, MapPin } from "lucide-react";
 import UserManager from "./UserManager";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -194,6 +194,17 @@ export default function SettingsManager() {
     });
   };
 
+  const updateInstitutionalData = (field: keyof InstitutionalData, value: string) => {
+    if (!settings) return;
+    setSettings({
+      ...settings,
+      institutionalData: {
+        ...(settings.institutionalData || DEFAULT_INSTITUTIONAL_DATA),
+        [field]: value
+      }
+    });
+  };
+
   if (loading || !settings) return <div className="p-8 text-center text-slate-500 animate-pulse">Cargando configuración...</div>;
 
   const sections = [
@@ -203,6 +214,124 @@ export default function SettingsManager() {
       description: "Administra los roles y accesos de los miembros de la ONG.",
       icon: <Users className="w-5 h-5" />,
       content: <UserManager />
+    },
+    {
+      id: "institutional",
+      title: "Datos Institucionales",
+      description: "Información legal, domicilio, contacto y representante legal para contratos y convenios.",
+      icon: <Building2 className="w-5 h-5" />,
+      content: (() => {
+        const inst = settings.institutionalData || DEFAULT_INSTITUTIONAL_DATA;
+        return (
+          <div className="space-y-6 pt-4">
+            <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-blue-600" />
+                Información de la Organización
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2 space-y-1">
+                  <Label>Nombre de la Organización</Label>
+                  <Input 
+                    className="bg-white"
+                    value={inst.orgName} 
+                    onChange={(e) => updateInstitutionalData("orgName", e.target.value)} 
+                    placeholder="Ej: Asociación Civil Mujeres 2000"
+                  />
+                </div>
+                <div className="md:col-span-2 space-y-1">
+                  <Label>Domicilio Legal Institucional</Label>
+                  <Input 
+                    className="bg-white"
+                    value={inst.legalAddress} 
+                    onChange={(e) => updateInstitutionalData("legalAddress", e.target.value)} 
+                    placeholder="Ej: Calle Chubut Nº 1189, Ciudad de San Isidro, Provincia de Buenos Aires"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                <Globe className="w-4 h-4 text-emerald-600" />
+                Datos de Contacto
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>Sitio Web</Label>
+                  <Input 
+                    className="bg-white"
+                    value={inst.website} 
+                    onChange={(e) => updateInstitutionalData("website", e.target.value)} 
+                    placeholder="Ej: www.mujeres2000.org.ar"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Teléfono Institucional</Label>
+                  <Input 
+                    className="bg-white"
+                    value={inst.phone} 
+                    onChange={(e) => updateInstitutionalData("phone", e.target.value)} 
+                    placeholder="Ej: 011 15 5709 4754"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                <Users className="w-4 h-4 text-purple-600" />
+                Representante Legal (Firmante de la Institución)
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-1 space-y-1">
+                  <Label>Nombre y Apellido</Label>
+                  <Input 
+                    className="bg-white"
+                    value={inst.repName} 
+                    onChange={(e) => updateInstitutionalData("repName", e.target.value)} 
+                    placeholder="Ej: Maria Agustina Pacheco"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>DNI del Representante</Label>
+                  <Input 
+                    className="bg-white"
+                    value={inst.repDni} 
+                    onChange={(e) => updateInstitutionalData("repDni", e.target.value)} 
+                    placeholder="Ej: 31.163.819"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Cargo del Representante</Label>
+                  <Input 
+                    className="bg-white"
+                    value={inst.repRole} 
+                    onChange={(e) => updateInstitutionalData("repRole", e.target.value)} 
+                    placeholder="Ej: Presidente"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-amber-600" />
+                Datos por Defecto de Jurisdicción y Firma
+              </h4>
+              <div className="space-y-1">
+                <Label>Localidad y Provincia de Firma por Defecto</Label>
+                <Input 
+                  className="bg-white"
+                  value={inst.signatureLocation} 
+                  onChange={(e) => updateInstitutionalData("signatureLocation", e.target.value)} 
+                  placeholder="Ej: Tigre, Provincia de Buenos Aires, República Argentina"
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })()
     },
     {
       id: "forms",
