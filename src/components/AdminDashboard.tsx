@@ -70,6 +70,7 @@ import { DEFAULT_SETTINGS } from "../lib/defaultSettings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SettingsManager from "./SettingsManager";
 import ScoringManager from "./ScoringManager";
+import { generateMutuoPdf } from "../utils/generateMutuoPdf";
 
 import { handleFirestoreError, OperationType } from "../lib/firestoreErrorHandler";
 
@@ -370,7 +371,36 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
     }
   };
 
+  const handleDownloadMutuo = async (app: LoanApplication) => {
+    try {
+      const pdf = generateMutuoPdf(app, settings);
+      const lastName = app.personalData?.lastName?.trim() || "Emprendedora";
+      const firstName = app.personalData?.firstName?.trim() || "";
+      const fileName = `Contrato_Mutuo_${lastName}_${firstName}.pdf`.replace(/\s+/g, '_');
+      pdf.save(fileName);
+
+      const now = new Date().toISOString();
+      if (!app.mutuoGeneratedAt) {
+        await updateDoc(doc(db, "applications", app.id), {
+          mutuoGeneratedAt: now
+        });
+        if (selectedApp && selectedApp.id === app.id) {
+          setSelectedApp({ ...selectedApp, mutuoGeneratedAt: now });
+        }
+      }
+      toast.success("Contrato de Mutuo descargado correctamente.");
+    } catch (error) {
+      console.error("Error al generar el Mutuo:", error);
+      toast.error("Error al generar el PDF del Mutuo.");
+    }
+  };
+
   const handleDisburse = async (app: LoanApplication) => {
+    // If mutuo hasn't been generated manually yet, generate and download it now automatically
+    if (!app.mutuoGeneratedAt) {
+      await handleDownloadMutuo(app);
+    }
+
     const installmentsCount = app.loanDetails.installmentsCount || 6;
     const frequency = app.loanDetails.paymentFrequency || 'Monthly';
     const creditType = app.loanDetails.creditType;
@@ -420,19 +450,22 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
         status: 'Active' as const,
         paymentSchedule: schedule,
         updatedAt: updatedAt,
-        approvedAt: approvedAt
+        approvedAt: approvedAt,
+        mutuoGeneratedAt: app.mutuoGeneratedAt || updatedAt
       };
 
       await updateDoc(doc(db, "applications", app.id), {
         status: 'Active',
         paymentSchedule: schedule,
         updatedAt: updatedAt,
-        approvedAt: approvedAt
+        approvedAt: approvedAt,
+        mutuoGeneratedAt: app.mutuoGeneratedAt || updatedAt
       });
 
       if (selectedApp?.id === app.id) {
         setSelectedApp(updatedApp);
       }
+      toast.success("Desembolso confirmado. El préstamo pasa a estar Activo.");
     } catch (error) {
       console.error("Disbursement failed:", error);
       toast.error("Error al confirmar el desembolso. Por favor, intenta de nuevo.");
@@ -2120,13 +2153,37 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
                           })()}
 
                           {selectedApp.status === 'Approved' && (
-                            <Button 
-                              className="w-full bg-blue-600 hover:bg-blue-700 text-white mb-2"
-                              onClick={() => handleDisburse(selectedApp)}
-                            >
-                              <CheckCircle className="w-4 h-4 mr-2" />
-                              Confirmar Desembolso (Activar)
-                            </Button>
+                            <div className="space-y-2 mb-2">
+                              <Button 
+                                variant="outline"
+                                className="w-full border-purple-300 text-purple-700 hover:bg-purple-50 font-semibold"
+                                onClick={() => handleDownloadMutuo(selectedApp)}
+                              >
+                                <FileText className="w-4 h-4 mr-2 text-purple-600" />
+                                Generar y Descargar Mutuo (PDF)
+                              </Button>
+
+                              <Button 
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                                onClick={() => handleDisburse(selectedApp)}
+                              >
+                                <CheckCircle className="w-4 h-4 mr-2" />
+                                Confirmar Desembolso (Activar)
+                              </Button>
+                            </div>
+                          )}
+
+                          {(selectedApp.status === 'Active' || selectedApp.status === 'Paid') && (
+                            <div className="mb-2">
+                              <Button 
+                                variant="outline"
+                                className="w-full border-purple-300 text-purple-700 hover:bg-purple-50 font-semibold"
+                                onClick={() => handleDownloadMutuo(selectedApp)}
+                              >
+                                <FileText className="w-4 h-4 mr-2 text-purple-600" />
+                                Descargar Mutuo (PDF)
+                              </Button>
+                            </div>
                           )}
 
                           <div className="grid grid-cols-2 gap-2">

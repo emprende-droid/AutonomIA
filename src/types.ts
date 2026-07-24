@@ -264,6 +264,7 @@ export interface LoanApplication {
   submittedAt?: string;
   rejectedAt?: string;
   loanNumber?: number;
+  mutuoGeneratedAt?: string;
 }
 
 export interface UserProfile {
