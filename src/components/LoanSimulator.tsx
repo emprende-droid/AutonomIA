@@ -34,11 +34,21 @@ export default function LoanSimulator({ settings }: Props) {
   const numAmount = typeof amount === 'number' ? amount : 0;
   const numInstallments = typeof installments === 'number' ? installments : 0;
 
-  const selectedProduct = settings.loanProducts.find(p => p.name === selectedProductName);
-  const baseMonthlyRate = selectedProduct?.interestRate || 0.05;
+  const selectedProduct = settings.loanProducts.find(
+    p => p.name.trim().toLowerCase() === selectedProductName?.trim().toLowerCase()
+  );
+  // Interest rate is stored as annual percentage (e.g., 48 for 48% TNA)
+  // Support legacy decimal monthly rate (e.g., 0.04) by multiplying by 1200 if <= 2
+  const rawRate = selectedProduct?.interestRate ?? 48;
+  const annualRatePercent = rawRate <= 2 ? rawRate * 1200 : rawRate;
+  const baseMonthlyRate = (annualRatePercent / 100) / 12;
   const rate = frequency === 'Weekly' ? baseMonthlyRate / 4 : baseMonthlyRate;
   
-  const maxAmount = selectedProduct?.maxAmount || 150000;
+  const maxAmount = selectedProduct?.maxAmount ?? (
+    settings.loanProducts && settings.loanProducts.length > 0 
+      ? Math.max(...settings.loanProducts.map(p => p.maxAmount))
+      : 700000
+  );
   const maxInstallments = frequency === 'Weekly' ? (selectedProduct?.maxInstallments || 6) * 4 : (selectedProduct?.maxInstallments || 6);
   
   const calculatePayment = () => {
@@ -212,9 +222,9 @@ export default function LoanSimulator({ settings }: Props) {
             <div className="flex flex-col items-center text-center space-y-2">
               <span className="text-sm text-slate-500 uppercase font-bold tracking-wider">Cuota {frequency === 'Weekly' ? 'Semanal' : 'Mensual'} Estimada</span>
               <span className="text-4xl font-bold text-primary">${periodicPayment.toLocaleString('es-AR')}</span>
-              <div className="flex items-center gap-1 text-xs text-slate-400 mt-2">
+              <div className="flex items-center gap-1 text-xs text-slate-500 mt-2">
                 <Info className="w-3 h-3" />
-                <span>Tasa de interés {frequency === 'Weekly' ? 'semanal' : 'mensual'} estimada: {(rate * 100).toFixed(2)}%</span>
+                <span>Tasa Anual (TNA): {annualRatePercent}% | Tasa {frequency === 'Weekly' ? 'semanal' : 'mensual'}: {(rate * 100).toFixed(2)}%</span>
               </div>
             </div>
           </div>

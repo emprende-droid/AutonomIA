@@ -88,9 +88,17 @@ export default function Step4LoanDetails({ data, onChange, settings, validationE
     return numeric === "" ? 0 : parseInt(numeric, 10);
   };
 
-  const selectedProduct = settings.loanProducts.find(p => p.name === data.creditType);
-  const maxAmount = selectedProduct?.maxAmount || 150000;
-  const baseMonthlyRate = selectedProduct?.interestRate || 0.05;
+  const selectedProduct = settings.loanProducts.find(
+    p => p.name.trim().toLowerCase() === data.creditType?.trim().toLowerCase()
+  );
+  const maxAmount = selectedProduct?.maxAmount ?? (
+    settings.loanProducts && settings.loanProducts.length > 0 
+      ? Math.max(...settings.loanProducts.map(p => p.maxAmount))
+      : 700000
+  );
+  const rawRate = selectedProduct?.interestRate ?? 48;
+  const annualRatePercent = rawRate <= 2 ? rawRate * 1200 : rawRate;
+  const baseMonthlyRate = (annualRatePercent / 100) / 12;
   const rate = data.paymentFrequency === 'Weekly' ? baseMonthlyRate / 4 : baseMonthlyRate;
   const maxInstallments = data.paymentFrequency === 'Weekly' ? (selectedProduct?.maxInstallments || 6) * 4 : (selectedProduct?.maxInstallments || 6);
 
@@ -280,7 +288,7 @@ export default function Step4LoanDetails({ data, onChange, settings, validationE
           )}
           {selectedProduct && (
             <p className="text-[10px] text-slate-500 mt-1">
-              Mínimo: ${selectedProduct.minAmount.toLocaleString('es-AR')} | Máximo: ${selectedProduct.maxAmount.toLocaleString('es-AR')}
+              Mínimo: ${selectedProduct.minAmount.toLocaleString('es-AR')} | Máximo: ${selectedProduct.maxAmount.toLocaleString('es-AR')} | TNA: {annualRatePercent}%
             </p>
           )}
         </div>

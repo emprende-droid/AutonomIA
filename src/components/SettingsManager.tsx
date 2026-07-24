@@ -98,7 +98,7 @@ export default function SettingsManager() {
       name: "Nuevo Producto",
       minAmount: 0,
       maxAmount: 100000,
-      interestRate: 0.05,
+      interestRate: 48,
       maxInstallments: 6
     };
     setSettings({
@@ -348,12 +348,13 @@ export default function SettingsManager() {
                   />
                 </div>
                 <div>
-                  <Label>Tasa Mensual (decimal)</Label>
+                  <Label>Tasa Anual (%)</Label>
                   <Input 
                     className="bg-white"
                     type="number" 
-                    step="0.01"
-                    value={product.interestRate} 
+                    step="0.1"
+                    placeholder="Ej: 48"
+                    value={product.interestRate <= 2 ? Math.round(product.interestRate * 1200) : product.interestRate} 
                     onChange={(e) => updateProduct(product.id, "interestRate", Number(e.target.value))} 
                   />
                 </div>

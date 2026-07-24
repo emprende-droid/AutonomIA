@@ -778,8 +778,22 @@ export default function App() {
   const handleSubmit = async () => {
     if (!application) return;
 
-    if (application.loanDetails.requestedAmount > MAX_LOAN_AMOUNT) {
-      toast.error(`El monto solicitado excede el máximo permitido ($${MAX_LOAN_AMOUNT.toLocaleString('es-AR')}).`);
+    const selectedProduct = settings.loanProducts?.find(
+      p => p.name.trim().toLowerCase() === application.loanDetails.creditType?.trim().toLowerCase()
+    );
+    const maxAllowedForProduct = selectedProduct?.maxAmount ?? (
+      settings.loanProducts && settings.loanProducts.length > 0 
+        ? Math.max(...settings.loanProducts.map(p => p.maxAmount))
+        : MAX_LOAN_AMOUNT
+    );
+
+    if (application.loanDetails.requestedAmount > maxAllowedForProduct) {
+      toast.error(`El monto solicitado excede el máximo permitido ($${maxAllowedForProduct.toLocaleString('es-AR')}).`);
+      return;
+    }
+
+    if (selectedProduct && application.loanDetails.requestedAmount < selectedProduct.minAmount) {
+      toast.error(`El monto solicitado es menor al mínimo permitido ($${selectedProduct.minAmount.toLocaleString('es-AR')}).`);
       return;
     }
 
@@ -1285,8 +1299,12 @@ export default function App() {
                 const installmentsCount = app.loanDetails.installmentsCount || 6;
                 const paymentFrequency = app.loanDetails.paymentFrequency || 'Monthly';
                 
-                const selectedProduct = settings.loanProducts?.find(p => p.name === creditType);
-                const baseMonthlyRate = selectedProduct?.interestRate || 0.05;
+                const selectedProduct = settings.loanProducts?.find(
+                  p => p.name.trim().toLowerCase() === creditType?.trim().toLowerCase()
+                );
+                const rawRate = selectedProduct?.interestRate ?? 48;
+                const annualRatePercent = rawRate <= 2 ? rawRate * 1200 : rawRate;
+                const baseMonthlyRate = (annualRatePercent / 100) / 12;
                 const rate = paymentFrequency === 'Weekly' ? baseMonthlyRate / 4 : baseMonthlyRate;
                 
                 if (requestedAmount <= 0 || installmentsCount <= 0) return 0;

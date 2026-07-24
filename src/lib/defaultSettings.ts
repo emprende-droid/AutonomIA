@@ -3,20 +3,20 @@ import { AppSettings } from "../types";
 export const DEFAULT_SETTINGS: AppSettings = {
   loanProducts: [
     {
-      id: "individual",
-      name: "Microcrédito Individual",
+      id: "comercial",
+      name: "Microcrédito Comercial",
       minAmount: 10000,
-      maxAmount: 150000,
-      interestRate: 0.05,
-      maxInstallments: 6
+      maxAmount: 700000,
+      interestRate: 48,
+      maxInstallments: 18
     },
     {
-      id: "grupal",
-      name: "Microcrédito Grupal",
+      id: "productivo",
+      name: "Microcrédito Productivo",
       minAmount: 5000,
-      maxAmount: 80000,
-      interestRate: 0.04,
-      maxInstallments: 4
+      maxAmount: 700000,
+      interestRate: 48,
+      maxInstallments: 12
     }
   ],
   neighborhoods: [

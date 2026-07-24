@@ -63,8 +63,10 @@ import { toast } from "sonner";
 import { 
   Installment, 
   PaymentSchedule, 
-  ScoringEvaluation 
+  ScoringEvaluation,
+  AppSettings
 } from "../types";
+import { DEFAULT_SETTINGS } from "../lib/defaultSettings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SettingsManager from "./SettingsManager";
 import ScoringManager from "./ScoringManager";
@@ -74,6 +76,7 @@ import { handleFirestoreError, OperationType } from "../lib/firestoreErrorHandle
 export default function AdminDashboard({ defaultTab = "applications" }: { defaultTab?: string }) {
   const [applications, setApplications] = useState<LoanApplication[]>([]);
   const [evaluations, setEvaluations] = useState<ScoringEvaluation[]>([]);
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [collectionSearch, setCollectionSearch] = useState("");
@@ -189,9 +192,16 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
       handleFirestoreError(error, OperationType.LIST, "scoring_evaluations");
     });
 
+    const unsubSettings = onSnapshot(doc(db, "config", "settings"), (docSnap) => {
+      if (docSnap.exists()) {
+        setSettings({ ...DEFAULT_SETTINGS, ...docSnap.data() } as AppSettings);
+      }
+    });
+
     return () => {
       unsubApps();
       unsubEvals();
+      unsubSettings();
     };
   }, []);
 
@@ -363,7 +373,13 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
   const handleDisburse = async (app: LoanApplication) => {
     const installmentsCount = app.loanDetails.installmentsCount || 6;
     const frequency = app.loanDetails.paymentFrequency || 'Monthly';
-    const baseMonthlyRate = 0.05;
+    const creditType = app.loanDetails.creditType;
+    const selectedProduct = settings.loanProducts?.find(
+      p => p.name.trim().toLowerCase() === creditType?.trim().toLowerCase()
+    );
+    const rawRate = selectedProduct?.interestRate ?? 48;
+    const annualRatePercent = rawRate <= 2 ? rawRate * 1200 : rawRate;
+    const baseMonthlyRate = (annualRatePercent / 100) / 12;
     const rate = frequency === 'Weekly' ? baseMonthlyRate / 4 : baseMonthlyRate;
     const amount = app.loanDetails.requestedAmount;
     
