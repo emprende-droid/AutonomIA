@@ -10,7 +10,7 @@ import {
   updateDoc,
   deleteField
 } from "firebase/firestore";
-import { db, storage } from "../firebase";
+import { db, storage, auth } from "../firebase";
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 import { LoanApplication } from "../types";
 import { 
@@ -49,6 +49,7 @@ import {
   Database,
   Trash2,
   AlertTriangle,
+  UserPlus,
   ArrowRight,
   ArrowLeft,
   History,
@@ -1372,7 +1373,14 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
                               {app.loanNumber ? `#${app.loanNumber}` : "Borrador"}
                             </TableCell>
                             <TableCell>
-                              <div className="font-medium">{app.personalData.lastName}, {app.personalData.firstName}</div>
+                              <div className="font-medium flex items-center gap-1.5 flex-wrap">
+                                <span>{app.personalData.lastName}, {app.personalData.firstName}</span>
+                                {app.createdOnBehalf && (
+                                  <Badge variant="outline" className="text-[10px] bg-purple-50 text-purple-700 border-purple-200">
+                                    x Cuenta y Orden
+                                  </Badge>
+                                )}
+                              </div>
                               <div className="text-xs text-slate-500">{app.userEmail}</div>
                             </TableCell>
                             <TableCell>${app.loanDetails.requestedAmount.toLocaleString('es-AR')}</TableCell>
@@ -2152,60 +2160,88 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
                             );
                           })()}
 
-                          {selectedApp.status === 'Approved' && (
-                            <div className="space-y-2 mb-2">
-                              <Button 
-                                variant="outline"
-                                className="w-full border-purple-300 text-purple-700 hover:bg-purple-50 font-semibold"
-                                onClick={() => handleDownloadMutuo(selectedApp)}
-                              >
-                                <FileText className="w-4 h-4 mr-2 text-purple-600" />
-                                Generar y Descargar Mutuo (PDF)
-                              </Button>
+                          {(() => {
+                            const isCreatorOfApp = Boolean(
+                              selectedApp.createdByUid && 
+                              auth.currentUser?.uid && 
+                              selectedApp.createdByUid === auth.currentUser.uid
+                            );
 
-                              <Button 
-                                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                                onClick={() => handleDisburse(selectedApp)}
-                              >
-                                <CheckCircle className="w-4 h-4 mr-2" />
-                                Confirmar Desembolso (Activar)
-                              </Button>
-                            </div>
-                          )}
+                            return (
+                              <>
+                                {isCreatorOfApp && (
+                                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 space-y-1 mb-3">
+                                    <div className="font-bold flex items-center gap-1.5 text-amber-900">
+                                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                                      Conflicto de Interés / Control Interno
+                                    </div>
+                                    <p className="text-slate-700 leading-relaxed">
+                                      Esta solicitud fue cargada por ti por cuenta y orden de la emprendedora. Por políticas de control interno, debe ser evaluada y autorizada por otro administrador.
+                                    </p>
+                                  </div>
+                                )}
 
-                          {(selectedApp.status === 'Active' || selectedApp.status === 'Paid') && (
-                            <div className="mb-2">
-                              <Button 
-                                variant="outline"
-                                className="w-full border-purple-300 text-purple-700 hover:bg-purple-50 font-semibold"
-                                onClick={() => handleDownloadMutuo(selectedApp)}
-                              >
-                                <FileText className="w-4 h-4 mr-2 text-purple-600" />
-                                Descargar Mutuo (PDF)
-                              </Button>
-                            </div>
-                          )}
+                                {selectedApp.status === 'Approved' && (
+                                  <div className="space-y-2 mb-2">
+                                    <Button 
+                                      variant="outline"
+                                      className="w-full border-purple-300 text-purple-700 hover:bg-purple-50 font-semibold"
+                                      onClick={() => handleDownloadMutuo(selectedApp)}
+                                    >
+                                      <FileText className="w-4 h-4 mr-2 text-purple-600" />
+                                      Generar y Descargar Mutuo (PDF)
+                                    </Button>
 
-                          <div className="grid grid-cols-2 gap-2">
-                            <Button 
-                              variant="outline" 
-                              className="text-green-600 border-green-200 hover:bg-green-50"
-                              onClick={() => updateStatus(selectedApp.id, 'Approved')}
-                              disabled={selectedApp.status === 'Approved' || selectedApp.status === 'Active'}
-                            >
-                              <CheckCircle className="w-4 h-4 mr-2" />
-                              Aprobar
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              className="text-red-600 border-red-200 hover:bg-red-50"
-                              onClick={() => updateStatus(selectedApp.id, 'Rejected')}
-                              disabled={selectedApp.status === 'Rejected' || selectedApp.status === 'Active' || selectedApp.status === 'Paid'}
-                            >
-                              <XCircle className="w-4 h-4 mr-2" />
-                              Rechazar
-                            </Button>
-                          </div>
+                                    <Button 
+                                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                                      onClick={() => handleDisburse(selectedApp)}
+                                      disabled={isCreatorOfApp}
+                                      title={isCreatorOfApp ? "No puedes desembolsar una solicitud cargada por ti mismo" : ""}
+                                    >
+                                      <CheckCircle className="w-4 h-4 mr-2" />
+                                      Confirmar Desembolso (Activar)
+                                    </Button>
+                                  </div>
+                                )}
+
+                                {(selectedApp.status === 'Active' || selectedApp.status === 'Paid') && (
+                                  <div className="mb-2">
+                                    <Button 
+                                      variant="outline"
+                                      className="w-full border-purple-300 text-purple-700 hover:bg-purple-50 font-semibold"
+                                      onClick={() => handleDownloadMutuo(selectedApp)}
+                                    >
+                                      <FileText className="w-4 h-4 mr-2 text-purple-600" />
+                                      Descargar Mutuo (PDF)
+                                    </Button>
+                                  </div>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-2">
+                                  <Button 
+                                    variant="outline" 
+                                    className="text-green-600 border-green-200 hover:bg-green-50"
+                                    onClick={() => updateStatus(selectedApp.id, 'Approved')}
+                                    disabled={isCreatorOfApp || selectedApp.status === 'Approved' || selectedApp.status === 'Active'}
+                                    title={isCreatorOfApp ? "No puedes aprobar una solicitud cargada por ti mismo" : ""}
+                                  >
+                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                    Aprobar
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    className="text-red-600 border-red-200 hover:bg-red-50"
+                                    onClick={() => updateStatus(selectedApp.id, 'Rejected')}
+                                    disabled={isCreatorOfApp || selectedApp.status === 'Rejected' || selectedApp.status === 'Active' || selectedApp.status === 'Paid'}
+                                    title={isCreatorOfApp ? "No puedes rechazar una solicitud cargada por ti mismo" : ""}
+                                  >
+                                    <XCircle className="w-4 h-4 mr-2" />
+                                    Rechazar
+                                  </Button>
+                                </div>
+                              </>
+                            );
+                          })()}
                         </>
                       )}
                     </div>

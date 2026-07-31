@@ -25,7 +25,8 @@ import {
   ArrowLeft,
   Eye,
   PlusCircle,
-  Calendar
+  Calendar,
+  UserPlus
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -46,7 +47,8 @@ import {
   User,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInAnonymously
+  signInAnonymously,
+  updateProfile
 } from "firebase/auth";
 import { 
   doc, 
@@ -71,8 +73,9 @@ import Step5Disbursement from "./components/Step5Disbursement";
 import AdminDashboard from "./components/AdminDashboard";
 import LoanSimulator from "./components/LoanSimulator";
 import PaymentManager from "./components/PaymentManager";
+import OnBehalfLoanManager from "./components/OnBehalfLoanManager";
 
-type View = 'wizard' | 'simulator' | 'admin';
+type View = 'wizard' | 'simulator' | 'onbehalf' | 'admin';
 
 const INITIAL_DATA = (user: User): LoanApplication => ({
   id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
@@ -335,6 +338,7 @@ const getApplicationValidationErrors = (app: LoanApplication) => {
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<'admin' | 'user'>('user');
+  const [canCreateOnBehalf, setCanCreateOnBehalf] = useState<boolean>(false);
   const [application, setApplication] = useState<LoanApplication | null>(null);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
@@ -356,7 +360,7 @@ export default function App() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
-  const [loginTab, setLoginTab] = useState<'google' | 'email' | 'guest'>('google');
+  const [loginTab, setLoginTab] = useState<'google' | 'email'>('google');
 
   useEffect(() => {
     const unsubscribe = onSnapshot(doc(db, "config", "settings"), (docSnap) => {
@@ -414,8 +418,12 @@ export default function App() {
               displayName: currentUser.displayName || "Emprendedora"
             });
             setUserRole(role);
+            setCanCreateOnBehalf(role === 'admin');
           } else {
-            setUserRole(userDoc.data().role);
+            const data = userDoc.data();
+            const userRole = data.role || 'user';
+            setUserRole(userRole);
+            setCanCreateOnBehalf(data.canCreateOnBehalf !== undefined ? Boolean(data.canCreateOnBehalf) : (userRole === 'admin'));
           }
         }
         setUser(currentUser);
@@ -428,6 +436,27 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Real-time listener for current user permissions and role
+  useEffect(() => {
+    if (!user) {
+      setCanCreateOnBehalf(false);
+      return;
+    }
+    const userDocRef = doc(db, "users", user.uid);
+    const unsubscribe = onSnapshot(userDocRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        const role = data.role || 'user';
+        setUserRole(role);
+        const onBehalf = data.canCreateOnBehalf !== undefined 
+          ? Boolean(data.canCreateOnBehalf) 
+          : (role === 'admin');
+        setCanCreateOnBehalf(onBehalf);
+      }
+    });
+    return () => unsubscribe();
+  }, [user]);
 
   // Firestore Sync
   useEffect(() => {
@@ -681,15 +710,22 @@ export default function App() {
     e.preventDefault();
     setAuthError("");
     setAuthLoading(true);
+    const cleanEmail = email.trim();
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, cleanEmail, password);
     } catch (error: any) {
-      console.error(error);
+      console.error("Email login error:", error);
       let errMsg = "Error al iniciar sesión. Por favor, verifica tus datos.";
       if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
         errMsg = "Correo o contraseña incorrectos.";
       } else if (error.code === "auth/invalid-email") {
         errMsg = "El correo electrónico no es válido.";
+      } else if (error.code === "auth/operation-not-allowed") {
+        errMsg = "El acceso por Correo y Contraseña no está habilitado en la consola de Firebase (Authentication > Sign-in method).";
+      } else if (error.code === "auth/too-many-requests") {
+        errMsg = "Demasiados intentos fallidos. Intenta nuevamente en unos minutos.";
+      } else if (error.message) {
+        errMsg = `Error (${error.code || 'auth'}): ${error.message}`;
       }
       setAuthError(errMsg);
     } finally {
@@ -700,8 +736,15 @@ export default function App() {
   const handleEmailRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
-    if (!name.trim()) {
-      setAuthError("Por favor, ingresa tu nombre.");
+    const cleanName = name.trim();
+    const cleanEmail = email.trim();
+    
+    if (!cleanName) {
+      setAuthError("Por favor, ingresa tu nombre completo.");
+      return;
+    }
+    if (!cleanEmail) {
+      setAuthError("Por favor, ingresa tu correo electrónico.");
       return;
     }
     if (password.length < 6) {
@@ -710,21 +753,40 @@ export default function App() {
     }
     setAuthLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+      
+      // Update Firebase Auth display name profile
+      if (userCredential.user) {
+        try {
+          await updateProfile(userCredential.user, { displayName: cleanName });
+        } catch (pErr) {
+          console.warn("Could not update auth profile displayName:", pErr);
+        }
+      }
+
+      // Create/update Firestore user document
       const userDocRef = doc(db, "users", userCredential.user.uid);
       await setDoc(userDocRef, {
         uid: userCredential.user.uid,
-        email: email,
+        email: cleanEmail,
         role: "user",
-        displayName: name
+        displayName: cleanName
       });
     } catch (error: any) {
-      console.error(error);
+      console.error("Email register error:", error);
       let errMsg = "Error al registrar la cuenta.";
       if (error.code === "auth/email-already-in-use") {
-        errMsg = "Este correo electrónico ya está registrado.";
+        errMsg = "Este correo electrónico ya está registrado. Por favor inicia sesión.";
       } else if (error.code === "auth/invalid-email") {
         errMsg = "El correo electrónico no es válido.";
+      } else if (error.code === "auth/operation-not-allowed") {
+        errMsg = "El registro por Correo/Contraseña está desactivado en Firebase Console (Authentication > Sign-in method). Habilítalo para permitir nuevos registros.";
+      } else if (error.code === "auth/weak-password") {
+        errMsg = "La contraseña es muy débil. Usa al menos 6 caracteres.";
+      } else if (error.code === "auth/network-request-failed") {
+        errMsg = "Error de red al conectar con Firebase.";
+      } else if (error.message) {
+        errMsg = `Error (${error.code || 'auth'}): ${error.message}`;
       }
       setAuthError(errMsg);
     } finally {
@@ -940,16 +1002,6 @@ export default function App() {
             >
               Correo
             </button>
-            <button
-              onClick={() => { setLoginTab('guest'); setAuthError(""); }}
-              className={`flex-1 py-1.5 sm:py-2 text-[11px] sm:text-sm font-semibold rounded-lg transition-all ${
-                loginTab === 'guest' 
-                  ? 'bg-white text-slate-900 shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Invitada (Demo)
-            </button>
           </div>
 
           {authError && (
@@ -968,19 +1020,12 @@ export default function App() {
                 <LogIn className="w-5 h-5 mr-2" />
                 Ingresar con Google
               </Button>
-              <div className="text-xs text-slate-400 mt-2 text-left leading-relaxed">
-                ⚠️ **Nota para iPhones / Safari**: Si tienes problemas de "missing initial state" al ingresar con Google, desactiva la navegación privada u opta por la pestañita de Correo o Invitada.
-              </div>
             </div>
           )}
 
           {/* Tab Content 2: Email & Password */}
           {loginTab === 'email' && (
             <div className="text-left space-y-4">
-              <p className="text-xs text-slate-500 mb-2">
-                Ideal para navegadores de iPhone, Safari en modo privado o si abriste el enlace directo desde WhatsApp.
-              </p>
-
               <form onSubmit={isRegistering ? handleEmailRegister : handleEmailLogin} className="space-y-3">
                 {isRegistering && (
                   <div>
@@ -1040,26 +1085,6 @@ export default function App() {
               </div>
             </div>
           )}
-
-          {/* Tab Content 3: Guest */}
-          {loginTab === 'guest' && (
-            <div className="space-y-4 text-left">
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Inicia sesión en **modo de prueba** de inmediato, sin contraseñas ni popups. Podrás rellenar la postulación, simular cuotas y ver todas las funciones de inmediato.
-              </p>
-              <div className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100 text-[11px] text-emerald-800 leading-relaxed">
-                🚀 **¡Perfecto para celulares!** Funciona al 100% en Safari de iPhone, Chats de WhatsApp y navegadores privados, ya que no depende de ventanas emergentes de Google.
-              </div>
-              <Button
-                onClick={handleGuestLogin}
-                disabled={authLoading}
-                className="w-full py-6 text-lg bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
-                size="lg"
-              >
-                {authLoading ? "Ingresando..." : "Ingresar como Invitada"}
-              </Button>
-            </div>
-          )}
         </Card>
       </div>
     );
@@ -1109,6 +1134,17 @@ export default function App() {
               <Calculator className="w-4 h-4 mr-2" />
               Simulador
             </Button>
+            {(canCreateOnBehalf || userRole === 'admin') && (
+              <Button 
+                variant={currentView === 'onbehalf' ? 'default' : 'ghost'} 
+                size="sm" 
+                onClick={() => setCurrentView('onbehalf')}
+                className="shrink-0 text-purple-700 hover:text-purple-800 hover:bg-purple-50"
+              >
+                <UserPlus className="w-4 h-4 mr-2 text-purple-600" />
+                Cuenta y Orden
+              </Button>
+            )}
             {userRole === 'admin' && (
               <Button 
                 variant={currentView === 'admin' ? 'default' : 'ghost'} 
@@ -1129,7 +1165,9 @@ export default function App() {
         </div>
 
         {currentView === 'admin' && userRole === 'admin' ? (
-          <AdminDashboard />
+          <AdminDashboard defaultTab="applications" />
+        ) : currentView === 'onbehalf' && (canCreateOnBehalf || userRole === 'admin') ? (
+          <OnBehalfLoanManager settings={settings} />
         ) : currentView === 'simulator' ? (
           <LoanSimulator settings={settings} />
         ) : userApplications.filter(app => app.status !== "Draft").length > 0 && !showNewRequest ? (

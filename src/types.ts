@@ -265,6 +265,9 @@ export interface LoanApplication {
   rejectedAt?: string;
   loanNumber?: number;
   mutuoGeneratedAt?: string;
+  createdByUid?: string;
+  createdByName?: string;
+  createdOnBehalf?: boolean;
 }
 
 export interface UserProfile {
@@ -272,4 +275,5 @@ export interface UserProfile {
   email: string;
   role: 'admin' | 'user';
   displayName?: string;
+  canCreateOnBehalf?: boolean;
 }

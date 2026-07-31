@@ -25,7 +25,8 @@ import {
   ShieldCheck, 
   User as UserIcon, 
   Search,
-  ShieldAlert
+  ShieldAlert,
+  UserPlus
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -60,6 +61,9 @@ export default function UserManager() {
           if (user.role === 'admin') {
             existing.role = 'admin';
           }
+          if (user.canCreateOnBehalf !== undefined) {
+            existing.canCreateOnBehalf = user.canCreateOnBehalf;
+          }
           // Preserve display name if the current one has it but the existing doesn't
           if (!existing.displayName && user.displayName) {
             existing.displayName = user.displayName;
@@ -85,13 +89,11 @@ export default function UserManager() {
     setUpdatingIds(prev => ({ ...prev, [user.uid]: true }));
 
     try {
-      // Find all user documents with this email address and update their role synchronously
       const usersRef = collection(db, "users");
       const qEmail = query(usersRef, where("email", "==", user.email));
       const emailSnap = await getDocs(qEmail);
       
       if (emailSnap.empty) {
-        // Fallback if no matching document by email (should not happen)
         await updateDoc(doc(db, "users", user.uid), {
           role: newRole
         });
@@ -110,6 +112,47 @@ export default function UserManager() {
       toast.error("Error al actualizar el rol");
     } finally {
       setUpdatingIds(prev => ({ ...prev, [user.uid]: false }));
+    }
+  };
+
+  const isUserOnBehalfEnabled = (user: UserProfile) => {
+    return user.canCreateOnBehalf !== undefined ? Boolean(user.canCreateOnBehalf) : (user.role === 'admin');
+  };
+
+  const toggleOnBehalf = async (user: UserProfile) => {
+    if (updatingIds[user.uid + "_onbehalf"]) return;
+
+    const currentStatus = isUserOnBehalfEnabled(user);
+    const newValue = !currentStatus;
+    setUpdatingIds(prev => ({ ...prev, [user.uid + "_onbehalf"]: true }));
+
+    try {
+      const usersRef = collection(db, "users");
+      const qEmail = query(usersRef, where("email", "==", user.email));
+      const emailSnap = await getDocs(qEmail);
+
+      if (emailSnap.empty) {
+        await updateDoc(doc(db, "users", user.uid), {
+          canCreateOnBehalf: newValue
+        });
+      } else {
+        const updatePromises = emailSnap.docs.map(docSnap => 
+          updateDoc(doc(db, "users", docSnap.id), {
+            canCreateOnBehalf: newValue
+          })
+        );
+        await Promise.all(updatePromises);
+      }
+
+      toast.success(newValue 
+        ? `Permiso "Carga x Cuenta y Orden" HABILITADO para ${user.email}` 
+        : `Permiso "Carga x Cuenta y Orden" DESHABILITADO para ${user.email}`
+      );
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+      toast.error("Error al actualizar el permiso");
+    } finally {
+      setUpdatingIds(prev => ({ ...prev, [user.uid + "_onbehalf"]: false }));
     }
   };
 
@@ -140,19 +183,20 @@ export default function UserManager() {
               <TableRow>
                 <TableHead className="font-semibold text-slate-700">Usuario</TableHead>
                 <TableHead className="font-semibold text-slate-700">Rol Actual</TableHead>
+                <TableHead className="font-semibold text-slate-700">Carga x Cuenta y Orden</TableHead>
                 <TableHead className="font-semibold text-slate-700 text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-12 text-slate-400">
+                  <TableCell colSpan={4} className="text-center py-12 text-slate-400">
                     Cargando usuarios...
                   </TableCell>
                 </TableRow>
               ) : filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-12 text-slate-400">
+                  <TableCell colSpan={4} className="text-center py-12 text-slate-400">
                     No se encontraron usuarios.
                   </TableCell>
                 </TableRow>
@@ -183,28 +227,65 @@ export default function UserManager() {
                         </Badge>
                       )}
                     </TableCell>
+                    <TableCell>
+                      {isUserOnBehalfEnabled(user) ? (
+                        <Badge className="bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-100">
+                          <UserPlus className="w-3 h-3 mr-1" />
+                          Habilitado
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-slate-400 border-slate-200">
+                          Deshabilitado
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant={user.role === 'admin' ? "outline" : "default"}
-                        size="sm"
-                        onClick={() => toggleRole(user)}
-                        disabled={updatingIds[user.uid]}
-                        className={user.role === 'admin' ? "text-slate-600 border-slate-200" : "bg-blue-600 hover:bg-blue-700"}
-                      >
-                        {updatingIds[user.uid] ? (
-                          "Actualizando..."
-                        ) : user.role === 'admin' ? (
-                          <>
-                            <ShieldAlert className="w-4 h-4 mr-2" />
-                            Quitar Admin
-                          </>
-                        ) : (
-                          <>
-                            <ShieldCheck className="w-4 h-4 mr-2" />
-                            Hacer Admin
-                          </>
-                        )}
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant={isUserOnBehalfEnabled(user) ? "outline" : "secondary"}
+                          size="sm"
+                          onClick={() => toggleOnBehalf(user)}
+                          disabled={updatingIds[user.uid + "_onbehalf"]}
+                          className={isUserOnBehalfEnabled(user) ? "text-purple-700 border-purple-200 hover:bg-purple-50" : "bg-purple-50 text-purple-700 hover:bg-purple-100"}
+                          title="Habilitar o deshabilitar la carga de préstamos a nombre de emprendedoras"
+                        >
+                          {updatingIds[user.uid + "_onbehalf"] ? (
+                            "..."
+                          ) : isUserOnBehalfEnabled(user) ? (
+                            <>
+                              <UserPlus className="w-4 h-4 mr-1" />
+                              Quitar "Cuenta y Orden"
+                            </>
+                          ) : (
+                            <>
+                              <UserPlus className="w-4 h-4 mr-1" />
+                              Habilitar "Cuenta y Orden"
+                            </>
+                          )}
+                        </Button>
+
+                        <Button
+                          variant={user.role === 'admin' ? "outline" : "default"}
+                          size="sm"
+                          onClick={() => toggleRole(user)}
+                          disabled={updatingIds[user.uid]}
+                          className={user.role === 'admin' ? "text-slate-600 border-slate-200" : "bg-blue-600 hover:bg-blue-700"}
+                        >
+                          {updatingIds[user.uid] ? (
+                            "..."
+                          ) : user.role === 'admin' ? (
+                            <>
+                              <ShieldAlert className="w-4 h-4 mr-1" />
+                              Quitar Admin
+                            </>
+                          ) : (
+                            <>
+                              <ShieldCheck className="w-4 h-4 mr-1" />
+                              Hacer Admin
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
