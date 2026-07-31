@@ -6,6 +6,7 @@ import {
   orderBy, 
   doc, 
   updateDoc,
+  setDoc,
   where,
   getDocs
 } from "firebase/firestore";
@@ -61,7 +62,10 @@ export default function UserManager() {
           if (user.role === 'admin') {
             existing.role = 'admin';
           }
-          if (user.canCreateOnBehalf !== undefined) {
+          // If any duplicate record is explicitly enabled for on-behalf, reflect that
+          if (user.canCreateOnBehalf === true) {
+            existing.canCreateOnBehalf = true;
+          } else if (existing.canCreateOnBehalf === undefined && user.canCreateOnBehalf !== undefined) {
             existing.canCreateOnBehalf = user.canCreateOnBehalf;
           }
           // Preserve display name if the current one has it but the existing doesn't
@@ -132,14 +136,16 @@ export default function UserManager() {
       const emailSnap = await getDocs(qEmail);
 
       if (emailSnap.empty) {
-        await updateDoc(doc(db, "users", user.uid), {
+        await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
+          email: user.email,
           canCreateOnBehalf: newValue
-        });
+        }, { merge: true });
       } else {
         const updatePromises = emailSnap.docs.map(docSnap => 
-          updateDoc(doc(db, "users", docSnap.id), {
+          setDoc(doc(db, "users", docSnap.id), {
             canCreateOnBehalf: newValue
-          })
+          }, { merge: true })
         );
         await Promise.all(updatePromises);
       }

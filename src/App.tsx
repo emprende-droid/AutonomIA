@@ -393,32 +393,41 @@ export default function App() {
           
           if (!userDoc.exists()) {
             let role: "admin" | "user" = currentUser.email === "mariano.imbrogno@gmail.com" ? "admin" : "user";
+            let inheritedOnBehalf: boolean | undefined = undefined;
             
-            // Check if there is an existing user document with this email to inherit their role
+            // Check if there is an existing user document with this email to inherit their role & permissions
             if (currentUser.email) {
               try {
                 const usersRef = collection(db, "users");
                 const qEmail = query(usersRef, where("email", "==", currentUser.email));
                 const emailSnap = await getDocs(qEmail);
                 if (!emailSnap.empty) {
-                  const existingUser = emailSnap.docs[0].data();
-                  if (existingUser && (existingUser.role === "admin" || existingUser.role === "user")) {
-                    role = existingUser.role;
-                  }
+                  emailSnap.docs.forEach(docSnap => {
+                    const existingUser = docSnap.data();
+                    if (existingUser && (existingUser.role === "admin" || existingUser.role === "user")) {
+                      if (existingUser.role === "admin") role = "admin";
+                    }
+                    if (existingUser && existingUser.canCreateOnBehalf !== undefined) {
+                      inheritedOnBehalf = Boolean(existingUser.canCreateOnBehalf);
+                    }
+                  });
                 }
               } catch (err) {
-                console.warn("Could not query existing email to inherit role:", err);
+                console.warn("Could not query existing email to inherit role/permissions:", err);
               }
             }
+
+            const initialCanOnBehalf = inheritedOnBehalf !== undefined ? inheritedOnBehalf : (role === 'admin');
 
             await setDoc(userDocRef, {
               uid: currentUser.uid,
               email: currentUser.email || "invitado@mujeres2000.org",
               role: role,
+              canCreateOnBehalf: initialCanOnBehalf,
               displayName: currentUser.displayName || "Emprendedora"
             });
             setUserRole(role);
-            setCanCreateOnBehalf(role === 'admin');
+            setCanCreateOnBehalf(initialCanOnBehalf);
           } else {
             const data = userDoc.data();
             const userRole = data.role || 'user';
@@ -443,19 +452,65 @@ export default function App() {
       setCanCreateOnBehalf(false);
       return;
     }
-    const userDocRef = doc(db, "users", user.uid);
-    const unsubscribe = onSnapshot(userDocRef, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        const role = data.role || 'user';
-        setUserRole(role);
-        const onBehalf = data.canCreateOnBehalf !== undefined 
-          ? Boolean(data.canCreateOnBehalf) 
-          : (role === 'admin');
-        setCanCreateOnBehalf(onBehalf);
-      }
-    });
-    return () => unsubscribe();
+
+    if (user.email) {
+      const usersRef = collection(db, "users");
+      const qEmail = query(usersRef, where("email", "==", user.email));
+      
+      const unsubscribe = onSnapshot(qEmail, (snap) => {
+        let isUserAdmin = user.email === "mariano.imbrogno@gmail.com";
+        let isUserOnBehalf = isUserAdmin;
+        let foundExplicitOnBehalf = false;
+
+        if (!snap.empty) {
+          snap.docs.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.role === 'admin') {
+              isUserAdmin = true;
+            }
+            if (data.canCreateOnBehalf !== undefined) {
+              foundExplicitOnBehalf = true;
+              if (data.canCreateOnBehalf === true) {
+                isUserOnBehalf = true;
+              }
+            }
+          });
+
+          if (!foundExplicitOnBehalf) {
+            isUserOnBehalf = isUserAdmin;
+          }
+
+          setUserRole(isUserAdmin ? 'admin' : 'user');
+          setCanCreateOnBehalf(isUserOnBehalf);
+        } else {
+          // Fallback to direct UID doc
+          const userDocRef = doc(db, "users", user.uid);
+          getDoc(userDocRef).then(uidSnap => {
+            if (uidSnap.exists()) {
+              const data = uidSnap.data();
+              const role = data.role || 'user';
+              setUserRole(role);
+              setCanCreateOnBehalf(data.canCreateOnBehalf !== undefined ? Boolean(data.canCreateOnBehalf) : (role === 'admin'));
+            }
+          });
+        }
+      });
+      return () => unsubscribe();
+    } else {
+      const userDocRef = doc(db, "users", user.uid);
+      const unsubscribe = onSnapshot(userDocRef, (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          const role = data.role || 'user';
+          setUserRole(role);
+          const onBehalf = data.canCreateOnBehalf !== undefined 
+            ? Boolean(data.canCreateOnBehalf) 
+            : (role === 'admin');
+          setCanCreateOnBehalf(onBehalf);
+        }
+      });
+      return () => unsubscribe();
+    }
   }, [user]);
 
   // Firestore Sync
