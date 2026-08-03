@@ -8,6 +8,7 @@ import {
   addDoc,
   deleteDoc,
   updateDoc,
+  setDoc,
   deleteField
 } from "firebase/firestore";
 import { db, storage, auth } from "../firebase";
@@ -245,40 +246,49 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
       cleanDrafts();
     }
 
-    // 2. Renumber submitted (non-draft) loans sequentially in chronological order
+    // 2. Assign unique sequential loan numbers ONLY to submitted apps that do not have one yet.
+    // Existing assigned loanNumbers are permanent and NEVER modified or renumbered.
     const submittedApps = activeApps.filter(app => app.status !== "Draft");
-    
-    // Sort submitted applications chronologically by createdAt
     const sortedSubmitted = [...submittedApps].sort((a, b) => 
       new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
+    const missingNumberApps = sortedSubmitted.filter(app => app.loanNumber === undefined || app.loanNumber === null);
     
-    // Check if any of these submitted apps have missing or incorrect numbering
-    const needsNumbering = sortedSubmitted.some((app, idx) => app.loanNumber !== idx + 1);
-    
-    if (needsNumbering) {
-      const assignNumbers = async () => {
-        for (let i = 0; i < sortedSubmitted.length; i++) {
-          const app = sortedSubmitted[i];
-          const correctNumber = i + 1;
-          if (app.loanNumber !== correctNumber) {
-            try {
-              await updateDoc(doc(db, "applications", app.id), {
-                loanNumber: correctNumber
-              });
-            } catch (err: any) {
-              if (isNotFoundError(err)) {
-                console.warn(`Could not assign correct loan number to app ${app.id} because it was not found in Firestore (likely deleted):`, err.message || err);
-              } else {
-                console.error(`Failed to assign correct loan number to app ${app.id}:`, err);
-              }
+    if (missingNumberApps.length > 0) {
+      const assignMissingNumbers = async () => {
+        let maxNumber = settings.lastAssignedLoanNumber || 0;
+        activeApps.forEach(app => {
+          if (typeof app.loanNumber === 'number' && app.loanNumber > maxNumber) {
+            maxNumber = app.loanNumber;
+          }
+        });
+
+        for (const app of missingNumberApps) {
+          maxNumber += 1;
+          try {
+            await updateDoc(doc(db, "applications", app.id), {
+              loanNumber: maxNumber
+            });
+          } catch (err: any) {
+            if (isNotFoundError(err)) {
+              console.warn(`Could not assign loan number to app ${app.id} because it was not found in Firestore (likely deleted):`, err.message || err);
+            } else {
+              console.error(`Failed to assign loan number to app ${app.id}:`, err);
             }
           }
         }
+
+        try {
+          await setDoc(doc(db, "config", "settings"), {
+            lastAssignedLoanNumber: maxNumber
+          }, { merge: true });
+        } catch (err) {
+          console.error("Error updating lastAssignedLoanNumber in settings:", err);
+        }
       };
-      assignNumbers();
+      assignMissingNumbers();
     }
-  }, [loading, applications, deletingAppIds]);
+  }, [loading, applications, deletingAppIds, settings]);
 
   const navigateToScoring = (appId: string) => {
     setScoringAppId(appId);
@@ -845,13 +855,21 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
     if (!isSelectionMode) {
       setIsSelectionMode(true);
       setSelectedDeleteIds([]);
-      toast.info("Modo de selección activado. Selecciona los préstamos a eliminar usando el indicador circular.");
+      toast.info("Modo de selección activado. Selecciona los préstamos a eliminar o usa 'Seleccionar Todo'.");
     } else {
       if (selectedDeleteIds.length === 0) {
         toast.warning("Por favor, selecciona al menos un préstamo para eliminar.");
         return;
       }
       setShowMultiDeleteConfirm(true);
+    }
+  };
+
+  const selectAllApplications = () => {
+    if (selectedDeleteIds.length === applications.length) {
+      setSelectedDeleteIds([]);
+    } else {
+      setSelectedDeleteIds(applications.map(app => app.id));
     }
   };
 
@@ -1241,14 +1259,63 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
-                  <Button
-                    onClick={handleExportToCSV}
-                    variant="outline"
-                    className="border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs gap-2 shrink-0 shadow-sm"
-                  >
-                    <Download className="w-4 h-4 text-slate-500" />
-                    Exportar a CSV
-                  </Button>
+                  {isSelectionMode ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={selectAllApplications}
+                        className="border-slate-200 text-slate-700 hover:bg-slate-100 text-xs shrink-0"
+                      >
+                        {selectedDeleteIds.length === applications.length ? "Deseleccionar Todo" : `Seleccionar Todo (${applications.length})`}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setIsSelectionMode(false);
+                          setSelectedDeleteIds([]);
+                        }}
+                        className="text-slate-600 hover:bg-slate-100 text-xs shrink-0"
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          if (selectedDeleteIds.length === 0) {
+                            toast.warning("Por favor, selecciona al menos un préstamo para eliminar.");
+                            return;
+                          }
+                          setShowMultiDeleteConfirm(true);
+                        }}
+                        className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs shrink-0 shadow-sm"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                        {selectedDeleteIds.length > 0 ? `Eliminar (${selectedDeleteIds.length})` : "Eliminar Seleccionados"}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        onClick={clearDemoData}
+                        variant="outline"
+                        className="bg-red-50 text-red-700 border-red-200 hover:bg-red-100 font-semibold text-xs gap-2 shrink-0 shadow-sm"
+                        title="Seleccionar y eliminar datos de prueba/demo"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-600" />
+                        Limpiar Demo
+                      </Button>
+                      <Button
+                        onClick={handleExportToCSV}
+                        variant="outline"
+                        className="border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs gap-2 shrink-0 shadow-sm"
+                      >
+                        <Download className="w-4 h-4 text-slate-500" />
+                        Exportar a CSV
+                      </Button>
+                    </>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="p-0">

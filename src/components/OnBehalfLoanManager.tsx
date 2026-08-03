@@ -8,7 +8,8 @@ import {
   setDoc, 
   getDocs,
   deleteDoc,
-  orderBy
+  orderBy,
+  limit
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { 
@@ -284,8 +285,55 @@ export default function OnBehalfLoanManager({ settings }: Props) {
 
     try {
       const nowIso = new Date().toISOString();
+
+      // Calculate sequential loan number if not already present
+      let loanNumber = activeApp.loanNumber;
+      if (!loanNumber) {
+        let maxInCollection = 0;
+        try {
+          const qMax = query(
+            collection(db, "applications"),
+            orderBy("loanNumber", "desc"),
+            limit(1)
+          );
+          const maxSnap = await getDocs(qMax);
+          if (!maxSnap.empty) {
+            const lastNum = maxSnap.docs[0].data().loanNumber;
+            if (typeof lastNum === 'number') {
+              maxInCollection = lastNum;
+            }
+          }
+        } catch (err) {
+          console.warn("Could not query max loan number using index, using fallback scan:", err);
+          try {
+            const allSnap = await getDocs(collection(db, "applications"));
+            allSnap.forEach(docSnap => {
+              const num = docSnap.data().loanNumber;
+              if (typeof num === 'number' && num > maxInCollection) {
+                maxInCollection = num;
+              }
+            });
+          } catch (scanErr) {
+            console.error("Scanning failed", scanErr);
+          }
+        }
+
+        const lastInSettings = settings?.lastAssignedLoanNumber || 0;
+        loanNumber = Math.max(maxInCollection, lastInSettings) + 1;
+      }
+
+      // Persist lastAssignedLoanNumber to settings
+      try {
+        await setDoc(doc(db, "config", "settings"), {
+          lastAssignedLoanNumber: loanNumber
+        }, { merge: true });
+      } catch (err) {
+        console.error("Failed to update lastAssignedLoanNumber in settings:", err);
+      }
+
       const submittedApp: LoanApplication = {
         ...activeApp,
+        loanNumber,
         status: "Pending",
         submittedAt: nowIso,
         updatedAt: nowIso,

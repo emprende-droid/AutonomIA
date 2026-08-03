@@ -950,6 +950,7 @@ export default function App() {
       // Calculate sequential loan number if not already present
       let loanNumber = application.loanNumber;
       if (!loanNumber) {
+        let maxInCollection = 0;
         try {
           const qMax = query(
             collection(db, "applications"),
@@ -960,39 +961,35 @@ export default function App() {
           if (!maxSnap.empty) {
             const lastNum = maxSnap.docs[0].data().loanNumber;
             if (typeof lastNum === 'number') {
-              loanNumber = lastNum + 1;
-            } else {
-              loanNumber = 1;
+              maxInCollection = lastNum;
             }
-          } else {
-            // Check if there are applications in a complete client scan (fallback)
-            const allSnap = await getDocs(collection(db, "applications"));
-            let maxNum = 0;
-            allSnap.forEach(docSnap => {
-              const num = docSnap.data().loanNumber;
-              if (typeof num === 'number' && num > maxNum) {
-                maxNum = num;
-              }
-            });
-            loanNumber = maxNum + 1;
           }
         } catch (err) {
           console.warn("Could not query max loan number using index, using full scan fallback:", err);
           try {
             const allSnap = await getDocs(collection(db, "applications"));
-            let maxNum = 0;
             allSnap.forEach(docSnap => {
               const num = docSnap.data().loanNumber;
-              if (typeof num === 'number' && num > maxNum) {
-                maxNum = num;
+              if (typeof num === 'number' && num > maxInCollection) {
+                maxInCollection = num;
               }
             });
-            loanNumber = maxNum + 1;
           } catch (scanErr) {
-            console.error("Scanning failed, defaulting to 1", scanErr);
-            loanNumber = 1;
+            console.error("Scanning failed", scanErr);
           }
         }
+
+        const lastInSettings = settings?.lastAssignedLoanNumber || 0;
+        loanNumber = Math.max(maxInCollection, lastInSettings) + 1;
+      }
+
+      // Persist lastAssignedLoanNumber to settings
+      try {
+        await setDoc(doc(db, "config", "settings"), {
+          lastAssignedLoanNumber: loanNumber
+        }, { merge: true });
+      } catch (err) {
+        console.error("Failed to update lastAssignedLoanNumber in settings:", err);
       }
 
       await setDoc(doc(db, "applications", submittedId), {

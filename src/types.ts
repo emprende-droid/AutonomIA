@@ -239,6 +239,7 @@ export interface AppSettings {
   salesPlaces?: string[];
   whatsappNumber?: string;
   allowMultipleLoans?: boolean;
+  lastAssignedLoanNumber?: number;
   institutionalData?: InstitutionalData;
   scoringConfig: {
     questions: ScoringQuestion[];
