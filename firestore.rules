@@ -69,7 +69,7 @@ service cloud.firestore {
       return data.keys().hasAll(['uid', 'email', 'role']) &&
              isValidEmail(data.email) &&
              data.role in ['admin', 'user'] &&
-             data.keys().hasOnly(['uid', 'email', 'role', 'displayName']);
+             data.keys().hasOnly(['uid', 'email', 'role', 'displayName', 'canCreateOnBehalf', 'createdOnBehalf', 'createdByUid', 'createdAt', 'updatedAt']);
     }
 
     function isValidUser(data) {
