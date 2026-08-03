@@ -97,15 +97,18 @@ export default function UserManager() {
       const qEmail = query(usersRef, where("email", "==", user.email));
       const emailSnap = await getDocs(qEmail);
       
+      const updateData: { role: string; canCreateOnBehalf?: boolean } = {
+        role: newRole
+      };
+      if (newRole === 'user') {
+        updateData.canCreateOnBehalf = false;
+      }
+
       if (emailSnap.empty) {
-        await updateDoc(doc(db, "users", user.uid), {
-          role: newRole
-        });
+        await updateDoc(doc(db, "users", user.uid), updateData);
       } else {
         const updatePromises = emailSnap.docs.map(docSnap => 
-          updateDoc(doc(db, "users", docSnap.id), {
-            role: newRole
-          })
+          updateDoc(doc(db, "users", docSnap.id), updateData)
         );
         await Promise.all(updatePromises);
       }
@@ -120,10 +123,16 @@ export default function UserManager() {
   };
 
   const isUserOnBehalfEnabled = (user: UserProfile) => {
-    return user.canCreateOnBehalf !== undefined ? Boolean(user.canCreateOnBehalf) : (user.role === 'admin');
+    if (user.role !== 'admin') return false;
+    return Boolean(user.canCreateOnBehalf);
   };
 
   const toggleOnBehalf = async (user: UserProfile) => {
+    if (user.role !== 'admin') {
+      toast.error("Solo los administradores pueden tener el permiso de Carga por Cuenta y Orden");
+      return;
+    }
+
     if (updatingIds[user.uid + "_onbehalf"]) return;
 
     const currentStatus = isUserOnBehalfEnabled(user);
@@ -251,9 +260,19 @@ export default function UserManager() {
                           variant={isUserOnBehalfEnabled(user) ? "outline" : "secondary"}
                           size="sm"
                           onClick={() => toggleOnBehalf(user)}
-                          disabled={updatingIds[user.uid + "_onbehalf"]}
-                          className={isUserOnBehalfEnabled(user) ? "text-purple-700 border-purple-200 hover:bg-purple-50" : "bg-purple-50 text-purple-700 hover:bg-purple-100"}
-                          title="Habilitar o deshabilitar la carga de préstamos a nombre de emprendedoras"
+                          disabled={updatingIds[user.uid + "_onbehalf"] || user.role !== 'admin'}
+                          className={
+                            user.role !== 'admin'
+                              ? "opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200"
+                              : isUserOnBehalfEnabled(user) 
+                              ? "text-purple-700 border-purple-200 hover:bg-purple-50" 
+                              : "bg-purple-50 text-purple-700 hover:bg-purple-100"
+                          }
+                          title={
+                            user.role !== 'admin' 
+                              ? "Primero debes otorga el rol de Administrador para habilitar este permiso" 
+                              : "Habilitar o deshabilitar la carga de préstamos por Cuenta y Orden"
+                          }
                         >
                           {updatingIds[user.uid + "_onbehalf"] ? (
                             "..."

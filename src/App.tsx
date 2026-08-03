@@ -417,7 +417,7 @@ export default function App() {
               }
             }
 
-            const initialCanOnBehalf = inheritedOnBehalf !== undefined ? inheritedOnBehalf : (role === 'admin');
+            const initialCanOnBehalf = role === 'admin' ? Boolean(inheritedOnBehalf) : false;
 
             await setDoc(userDocRef, {
               uid: currentUser.uid,
@@ -432,7 +432,7 @@ export default function App() {
             const data = userDoc.data();
             const userRole = data.role || 'user';
             setUserRole(userRole);
-            setCanCreateOnBehalf(data.canCreateOnBehalf !== undefined ? Boolean(data.canCreateOnBehalf) : (userRole === 'admin'));
+            setCanCreateOnBehalf(userRole === 'admin' ? Boolean(data.canCreateOnBehalf) : false);
           }
         }
         setUser(currentUser);
@@ -459,8 +459,7 @@ export default function App() {
       
       const unsubscribe = onSnapshot(qEmail, (snap) => {
         let isUserAdmin = user.email === "mariano.imbrogno@gmail.com";
-        let isUserOnBehalf = isUserAdmin;
-        let foundExplicitOnBehalf = false;
+        let hasExplicitOnBehalf = false;
 
         if (!snap.empty) {
           snap.docs.forEach(docSnap => {
@@ -468,20 +467,16 @@ export default function App() {
             if (data.role === 'admin') {
               isUserAdmin = true;
             }
-            if (data.canCreateOnBehalf !== undefined) {
-              foundExplicitOnBehalf = true;
-              if (data.canCreateOnBehalf === true) {
-                isUserOnBehalf = true;
-              }
+            if (data.canCreateOnBehalf === true) {
+              hasExplicitOnBehalf = true;
             }
           });
 
-          if (!foundExplicitOnBehalf) {
-            isUserOnBehalf = isUserAdmin;
-          }
+          const finalRole = isUserAdmin ? 'admin' : 'user';
+          const finalOnBehalf = finalRole === 'admin' && hasExplicitOnBehalf;
 
-          setUserRole(isUserAdmin ? 'admin' : 'user');
-          setCanCreateOnBehalf(isUserOnBehalf);
+          setUserRole(finalRole);
+          setCanCreateOnBehalf(finalOnBehalf);
         } else {
           // Fallback to direct UID doc
           const userDocRef = doc(db, "users", user.uid);
@@ -490,7 +485,7 @@ export default function App() {
               const data = uidSnap.data();
               const role = data.role || 'user';
               setUserRole(role);
-              setCanCreateOnBehalf(data.canCreateOnBehalf !== undefined ? Boolean(data.canCreateOnBehalf) : (role === 'admin'));
+              setCanCreateOnBehalf(role === 'admin' ? Boolean(data.canCreateOnBehalf) : false);
             }
           });
         }
@@ -503,15 +498,23 @@ export default function App() {
           const data = snap.data();
           const role = data.role || 'user';
           setUserRole(role);
-          const onBehalf = data.canCreateOnBehalf !== undefined 
-            ? Boolean(data.canCreateOnBehalf) 
-            : (role === 'admin');
-          setCanCreateOnBehalf(onBehalf);
+          setCanCreateOnBehalf(role === 'admin' ? Boolean(data.canCreateOnBehalf) : false);
         }
       });
       return () => unsubscribe();
     }
   }, [user]);
+
+  // Redirect admin users if on unauthorized views
+  useEffect(() => {
+    if (userRole === 'admin') {
+      if (currentView === 'wizard') {
+        setCurrentView('admin');
+      } else if (currentView === 'onbehalf' && !canCreateOnBehalf) {
+        setCurrentView('admin');
+      }
+    }
+  }, [userRole, canCreateOnBehalf, currentView]);
 
   // Firestore Sync
   useEffect(() => {
@@ -1168,15 +1171,17 @@ export default function App() {
           </div>
           
           <div className="flex items-center gap-2 bg-white p-1 rounded-lg shadow-sm border border-slate-200 overflow-x-auto max-w-full scrollbar-hide">
-            <Button 
-              variant={currentView === 'wizard' ? 'default' : 'ghost'} 
-              size="sm" 
-              onClick={() => setCurrentView('wizard')}
-              className="shrink-0"
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              Solicitudes
-            </Button>
+            {userRole !== 'admin' && (
+              <Button 
+                variant={currentView === 'wizard' ? 'default' : 'ghost'} 
+                size="sm" 
+                onClick={() => setCurrentView('wizard')}
+                className="shrink-0"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Solicitudes
+              </Button>
+            )}
             <Button 
               variant={currentView === 'simulator' ? 'default' : 'ghost'} 
               size="sm" 
@@ -1186,7 +1191,7 @@ export default function App() {
               <Calculator className="w-4 h-4 mr-2" />
               Simulador
             </Button>
-            {(canCreateOnBehalf || userRole === 'admin') && (
+            {userRole === 'admin' && canCreateOnBehalf && (
               <Button 
                 variant={currentView === 'onbehalf' ? 'default' : 'ghost'} 
                 size="sm" 
@@ -1218,10 +1223,12 @@ export default function App() {
 
         {currentView === 'admin' && userRole === 'admin' ? (
           <AdminDashboard defaultTab="applications" />
-        ) : currentView === 'onbehalf' && (canCreateOnBehalf || userRole === 'admin') ? (
+        ) : currentView === 'onbehalf' && userRole === 'admin' && canCreateOnBehalf ? (
           <OnBehalfLoanManager settings={settings} />
         ) : currentView === 'simulator' ? (
           <LoanSimulator settings={settings} />
+        ) : userRole === 'admin' ? (
+          <AdminDashboard defaultTab="applications" />
         ) : userApplications.filter(app => app.status !== "Draft").length > 0 && !showNewRequest ? (
           selectedAppId && userApplications.find(app => app.id === selectedAppId) ? (
             (() => {

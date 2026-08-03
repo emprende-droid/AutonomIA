@@ -60,9 +60,12 @@ import {
   Download,
   Calculator,
   Landmark,
-  CreditCard
+  CreditCard,
+  MessageSquare,
+  Save
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { 
   Installment, 
@@ -93,6 +96,22 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
   const [selectedDeleteIds, setSelectedDeleteIds] = useState<string[]>([]);
   const [showMultiDeleteConfirm, setShowMultiDeleteConfirm] = useState(false);
   const [deletingAppIds, setDeletingAppIds] = useState<string[]>([]);
+  const [adminCommentInput, setAdminCommentInput] = useState<string>("");
+  const [isSavingComment, setIsSavingComment] = useState<boolean>(false);
+  const [statusConfirmAction, setStatusConfirmAction] = useState<{
+    type: 'Approved' | 'Rejected';
+    appId: string;
+    appName: string;
+    amount?: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (selectedApp) {
+      setAdminCommentInput(selectedApp.adminComments || "");
+    } else {
+      setAdminCommentInput("");
+    }
+  }, [selectedApp?.id]);
 
   type SortKey = 'loanNumber' | 'name' | 'amount' | 'scoring' | 'date' | 'status';
   const [sortField, setSortField] = useState<SortKey>('date');
@@ -334,6 +353,25 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
     }
   };
 
+  const handleSaveComment = async () => {
+    if (!selectedApp) return;
+    setIsSavingComment(true);
+    try {
+      const updateData = {
+        adminComments: adminCommentInput,
+        updatedAt: new Date().toISOString()
+      };
+      await updateDoc(doc(db, "applications", selectedApp.id), updateData);
+      setSelectedApp({ ...selectedApp, ...updateData });
+      toast.success("Comentario guardado exitosamente");
+    } catch (error) {
+      console.error("Error al guardar comentario:", error);
+      toast.error("Error al guardar el comentario.");
+    } finally {
+      setIsSavingComment(false);
+    }
+  };
+
   const updateStatus = async (id: string, newStatus: LoanApplication['status']) => {
     const currentApp = applications.find(a => a.id === id);
     if (!currentApp) return;
@@ -369,6 +407,9 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
         status: newStatus,
         updatedAt: new Date().toISOString()
       };
+      if (adminCommentInput) {
+        updateData.adminComments = adminCommentInput;
+      }
       if (newStatus === 'Approved') {
         updateData.approvedAt = new Date().toISOString();
       } else if (newStatus === 'Rejected') {
@@ -378,6 +419,7 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
       if (selectedApp?.id === id) {
         setSelectedApp({ ...selectedApp, ...updateData });
       }
+      toast.success(`Solicitud ${newStatus === 'Approved' ? 'Aprobada' : newStatus === 'Rejected' ? 'Rechazada' : 'actualizada'}`);
     } catch (error) {
       console.error("Error updating status:", error);
       toast.error("Error al actualizar el estado. Por favor, intenta de nuevo.");
@@ -2294,6 +2336,38 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
                         </div>
                       ) : (
                         <>
+                          {/* Comentarios de Evaluación */}
+                          <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-2 mb-3">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <MessageSquare className="w-3.5 h-3.5 text-purple-600" />
+                                Comentarios de Evaluación / Observaciones
+                              </label>
+                              {(selectedApp.adminComments || '') !== adminCommentInput && (
+                                <span className="text-[10px] text-amber-600 font-medium italic">Sin guardar</span>
+                              )}
+                            </div>
+                            <Textarea
+                              value={adminCommentInput}
+                              onChange={(e) => setAdminCommentInput(e.target.value)}
+                              placeholder="Agrega comentarios u observaciones sobre esta solicitud (motivos, acuerdos, etc.)..."
+                              className="text-xs min-h-[70px] bg-white border-slate-200 resize-y"
+                            />
+                            <div className="flex justify-end">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={handleSaveComment}
+                                disabled={isSavingComment || (selectedApp.adminComments || '') === adminCommentInput}
+                                className="h-7 text-xs border-purple-200 text-purple-700 hover:bg-purple-50"
+                              >
+                                <Save className="w-3 h-3 mr-1" />
+                                {isSavingComment ? "Guardando..." : "Guardar Comentario"}
+                              </Button>
+                            </div>
+                          </div>
+
                           {(() => {
                             const scoring = getScoringData(selectedApp.id);
                             if (!scoring) {
@@ -2413,7 +2487,12 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
                                   <Button 
                                     variant="outline" 
                                     className="text-green-600 border-green-200 hover:bg-green-50"
-                                    onClick={() => updateStatus(selectedApp.id, 'Approved')}
+                                    onClick={() => setStatusConfirmAction({
+                                      type: 'Approved',
+                                      appId: selectedApp.id,
+                                      appName: `${selectedApp.personalData.firstName || ''} ${selectedApp.personalData.lastName || ''}`.trim() || selectedApp.personalData.dni || (selectedApp.loanNumber ? `#${selectedApp.loanNumber}` : selectedApp.id),
+                                      amount: selectedApp.loanDetails.requestedAmount
+                                    })}
                                     disabled={isCreatorOfApp || selectedApp.status === 'Approved' || selectedApp.status === 'Active'}
                                     title={isCreatorOfApp ? "No puedes aprobar una solicitud cargada por ti mismo" : ""}
                                   >
@@ -2423,7 +2502,12 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
                                   <Button 
                                     variant="outline" 
                                     className="text-red-600 border-red-200 hover:bg-red-50"
-                                    onClick={() => updateStatus(selectedApp.id, 'Rejected')}
+                                    onClick={() => setStatusConfirmAction({
+                                      type: 'Rejected',
+                                      appId: selectedApp.id,
+                                      appName: `${selectedApp.personalData.firstName || ''} ${selectedApp.personalData.lastName || ''}`.trim() || selectedApp.personalData.dni || (selectedApp.loanNumber ? `#${selectedApp.loanNumber}` : selectedApp.id),
+                                      amount: selectedApp.loanDetails.requestedAmount
+                                    })}
                                     disabled={isCreatorOfApp || selectedApp.status === 'Rejected' || selectedApp.status === 'Active' || selectedApp.status === 'Paid'}
                                     title={isCreatorOfApp ? "No puedes rechazar una solicitud cargada por ti mismo" : ""}
                                   >
@@ -2788,6 +2872,78 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
                 className="h-9 text-xs bg-red-600 hover:bg-red-700 text-white font-bold px-4 shadow-sm"
               >
                 Eliminar para Siempre
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {statusConfirmAction && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[500] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-slate-100 overflow-hidden flex flex-col p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                statusConfirmAction.type === 'Approved' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+              }`}>
+                {statusConfirmAction.type === 'Approved' ? (
+                  <CheckCircle className="w-5 h-5" />
+                ) : (
+                  <XCircle className="w-5 h-5" />
+                )}
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-slate-900">
+                  {statusConfirmAction.type === 'Approved' 
+                    ? '¿Confirmar Aprobación de Solicitud?' 
+                    : '¿Confirmar Rechazo de Solicitud?'}
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  {statusConfirmAction.type === 'Approved' ? (
+                    <>
+                      ¿Estás seguro de que deseas <strong className="text-green-700 font-semibold">aprobar</strong> la solicitud de préstamo de <strong>{statusConfirmAction.appName}</strong>
+                      {statusConfirmAction.amount ? ` por $${statusConfirmAction.amount.toLocaleString('es-AR')}` : ''}?
+                    </>
+                  ) : (
+                    <>
+                      ¿Estás seguro de que deseas <strong className="text-red-700 font-semibold">rechazar</strong> la solicitud de préstamo de <strong>{statusConfirmAction.appName}</strong>?
+                    </>
+                  )}
+                </p>
+                <p className="text-[11px] text-slate-500 pt-1">
+                  {statusConfirmAction.type === 'Approved'
+                    ? 'La solicitud cambiará a estado "Aprobada" y quedará habilitada para la generación de mutuo y desembolso.'
+                    : 'La solicitud cambiará a estado "Rechazada".'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setStatusConfirmAction(null)}
+                className="h-8 text-xs border-slate-200 text-slate-700 hover:bg-slate-50"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={async () => {
+                  const action = statusConfirmAction;
+                  setStatusConfirmAction(null);
+                  if (action) {
+                    await updateStatus(action.appId, action.type);
+                  }
+                }}
+                className={`h-8 text-xs font-semibold text-white ${
+                  statusConfirmAction.type === 'Approved'
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                {statusConfirmAction.type === 'Approved' ? 'Sí, Aprobar Solicitud' : 'Sí, Rechazar Solicitud'}
               </Button>
             </div>
           </div>

@@ -269,6 +269,7 @@ export interface LoanApplication {
   createdByUid?: string;
   createdByName?: string;
   createdOnBehalf?: boolean;
+  adminComments?: string;
 }
 
 export interface UserProfile {
