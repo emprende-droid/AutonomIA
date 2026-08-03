@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   collection, 
   onSnapshot, 
@@ -60,7 +60,8 @@ import {
   Briefcase,
   Home,
   User as UserIcon,
-  CreditCard
+  CreditCard,
+  Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 import { handleFirestoreError, OperationType } from "../lib/firestoreErrorHandler";
@@ -123,6 +124,7 @@ export default function OnBehalfLoanManager({ settings }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeApp, setActiveApp] = useState<LoanApplication | null>(null);
   const [currentStep, setCurrentStep] = useState<LoanStep>(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form for starting a new on-behalf loan
   const [isStartingNew, setIsStartingNew] = useState(false);
@@ -258,8 +260,11 @@ export default function OnBehalfLoanManager({ settings }: Props) {
     }
   };
 
-  // Save current active application state to Firestore
-  const saveDraft = async (appToSave: LoanApplication, step: LoanStep) => {
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Save current active application state silently to Firestore without overwriting local React state
+  const saveDraftSilently = async (appToSave: LoanApplication, step: LoanStep) => {
+    if (isSubmitting || appToSave.status !== 'Draft') return;
     try {
       const updatedApp = {
         ...appToSave,
@@ -267,21 +272,44 @@ export default function OnBehalfLoanManager({ settings }: Props) {
         updatedAt: new Date().toISOString()
       };
       await setDoc(doc(db, "applications", updatedApp.id), updatedApp);
-      setActiveApp(updatedApp);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `applications/${appToSave.id}`);
     }
   };
 
+  // Debounced auto-save triggered on keystrokes (800ms)
+  const debouncedSaveDraft = (appToSave: LoanApplication, step: LoanStep) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      saveDraftSilently(appToSave, step);
+    }, 800);
+  };
+
+  // Immediate save on step transition or manual click
+  const saveDraftImmediate = (appToSave: LoanApplication, step: LoanStep) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveDraftSilently(appToSave, step);
+  };
+
   // Submit active application to Pending
   const handleSubmitOnBehalf = async () => {
-    if (!activeApp) return;
+    if (!activeApp || isSubmitting) return;
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
 
     if (!activeApp.personalData.firstName || !activeApp.personalData.lastName || !activeApp.personalData.dni) {
       toast.error("Debes completar los datos personales (Nombre, Apellido y DNI) antes de enviar");
       setCurrentStep(1);
       return;
     }
+
+    setIsSubmitting(true);
 
     try {
       const nowIso = new Date().toISOString();
@@ -342,7 +370,7 @@ export default function OnBehalfLoanManager({ settings }: Props) {
         createdOnBehalf: true
       };
 
-      // 1. Save application
+      // 1. Save application as Pending
       await setDoc(doc(db, "applications", submittedApp.id), submittedApp);
 
       // 2. Register/update user document in 'users' collection so the entrepreneur exists in DB
@@ -359,9 +387,12 @@ export default function OnBehalfLoanManager({ settings }: Props) {
 
       toast.success("¡Solicitud por cuenta y orden enviada a revisión con éxito!");
       setActiveApp(null);
+      setCurrentStep(1);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `applications/${activeApp.id}`);
       toast.error("Error al enviar la solicitud");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -537,7 +568,7 @@ export default function OnBehalfLoanManager({ settings }: Props) {
                   type="button"
                   onClick={() => {
                     setCurrentStep(s.step as LoanStep);
-                    saveDraft(activeApp, s.step as LoanStep);
+                    saveDraftImmediate(activeApp, s.step as LoanStep);
                   }}
                   className={`flex items-center justify-center gap-2 p-2 rounded-lg text-xs font-semibold transition-colors ${
                     currentStep === s.step 
@@ -561,7 +592,7 @@ export default function OnBehalfLoanManager({ settings }: Props) {
                 onChange={(newData) => {
                   const updated = { ...activeApp, personalData: newData };
                   setActiveApp(updated);
-                  saveDraft(updated, 1);
+                  debouncedSaveDraft(updated, 1);
                 }}
                 settings={settings}
               />
@@ -573,7 +604,7 @@ export default function OnBehalfLoanManager({ settings }: Props) {
                 onChange={(newData) => {
                   const updated = { ...activeApp, householdFinance: newData };
                   setActiveApp(updated);
-                  saveDraft(updated, 2);
+                  debouncedSaveDraft(updated, 2);
                 }}
               />
             )}
@@ -584,7 +615,7 @@ export default function OnBehalfLoanManager({ settings }: Props) {
                 onChange={(newData) => {
                   const updated = { ...activeApp, entrepreneurshipData: newData };
                   setActiveApp(updated);
-                  saveDraft(updated, 3);
+                  debouncedSaveDraft(updated, 3);
                 }}
                 settings={settings}
               />
@@ -596,7 +627,7 @@ export default function OnBehalfLoanManager({ settings }: Props) {
                 onChange={(newData) => {
                   const updated = { ...activeApp, loanDetails: newData };
                   setActiveApp(updated);
-                  saveDraft(updated, 4);
+                  debouncedSaveDraft(updated, 4);
                 }}
                 settings={settings}
               />
@@ -609,7 +640,7 @@ export default function OnBehalfLoanManager({ settings }: Props) {
                   onChange={(newData) => {
                     const updated = { ...activeApp, disbursementInfo: newData };
                     setActiveApp(updated);
-                    saveDraft(updated, 5);
+                    debouncedSaveDraft(updated, 5);
                   }}
                 />
 
@@ -648,11 +679,11 @@ export default function OnBehalfLoanManager({ settings }: Props) {
             <div className="flex justify-between items-center pt-6 mt-6 border-t border-slate-200">
               <Button
                 variant="outline"
-                disabled={currentStep === 1}
+                disabled={currentStep === 1 || isSubmitting}
                 onClick={() => {
                   const prev = (currentStep - 1) as LoanStep;
                   setCurrentStep(prev);
-                  saveDraft(activeApp, prev);
+                  saveDraftImmediate(activeApp, prev);
                 }}
               >
                 <ChevronLeft className="w-4 h-4 mr-2" />
@@ -660,36 +691,57 @@ export default function OnBehalfLoanManager({ settings }: Props) {
               </Button>
 
               <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    saveDraft(activeApp, currentStep);
-                    toast.success("Borrador guardado exitosamente");
-                  }}
-                  className="border-purple-200 text-purple-700 hover:bg-purple-50"
-                >
-                  Guardar Borrador
-                </Button>
+                {activeApp.status === 'Draft' && (
+                  <Button
+                    variant="outline"
+                    disabled={isSubmitting}
+                    onClick={() => {
+                      saveDraftImmediate(activeApp, currentStep);
+                      toast.success("Borrador guardado exitosamente");
+                    }}
+                    className="border-purple-200 text-purple-700 hover:bg-purple-50"
+                  >
+                    Guardar Borrador
+                  </Button>
+                )}
 
                 {currentStep < 5 ? (
                   <Button
+                    disabled={isSubmitting}
                     onClick={() => {
                       const next = (currentStep + 1) as LoanStep;
                       setCurrentStep(next);
-                      saveDraft(activeApp, next);
+                      saveDraftImmediate(activeApp, next);
                     }}
                     className="bg-purple-700 hover:bg-purple-800 text-white"
                   >
                     Siguiente
                     <ChevronRight className="w-4 h-4 ml-2" />
                   </Button>
+                ) : activeApp.status === 'Draft' ? (
+                  <Button
+                    disabled={isSubmitting}
+                    onClick={handleSubmitOnBehalf}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold min-w-[180px]"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 mr-2" />
+                        Enviar a Revisión
+                      </>
+                    )}
+                  </Button>
                 ) : (
                   <Button
-                    onClick={handleSubmitOnBehalf}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                    onClick={() => setActiveApp(null)}
+                    className="bg-slate-700 hover:bg-slate-800 text-white"
                   >
-                    <Send className="w-4 h-4 mr-2" />
-                    Enviar a Revisión
+                    Volver a la Lista
                   </Button>
                 )}
               </div>
