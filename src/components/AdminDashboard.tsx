@@ -58,7 +58,9 @@ import {
   ChevronDown,
   ArrowUpDown,
   Download,
-  Calculator
+  Calculator,
+  Landmark,
+  CreditCard
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -1495,52 +1497,305 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
                     </div>
                   </CardHeader>
                   <CardContent className="p-6 space-y-8">
-                    {/* Datos del Emprendimiento */}
-                    {selectedApp.entrepreneurshipData && (
+                    {/* PASO 1 — DATOS PERSONALES */}
+                    {selectedApp.personalData && (
                       <div className="space-y-3">
-                        <h4 className="text-xs font-bold uppercase text-slate-400 flex items-center gap-1">
-                          <Briefcase className="w-3 h-3" /> Datos del Emprendimiento
+                        <h4 className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1.5 border-b pb-1.5">
+                          <UserIcon className="w-3.5 h-3.5 text-indigo-600" /> Paso 1: Datos Personales de la Emprendedora
                         </h4>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="bg-slate-50 p-3 rounded">
-                            <span className="block text-[10px] text-slate-500">Nombre</span>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">Apellido y Nombre</span>
+                            <span className="font-bold text-slate-900">{selectedApp.personalData.lastName}, {selectedApp.personalData.firstName}</span>
+                          </div>
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">DNI</span>
+                            <span className="font-bold text-slate-900">{selectedApp.personalData.dni || 'N/A'}</span>
+                          </div>
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">CUIL</span>
+                            <span className="font-bold text-slate-900">{selectedApp.personalData.cuil || selectedApp.personalData.dni || 'N/A'}</span>
+                          </div>
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">Fecha de Nacimiento</span>
+                            <span className="font-bold text-slate-900">{selectedApp.personalData.birthDate || 'N/A'}</span>
+                          </div>
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">Teléfono</span>
+                            <span className="font-bold text-slate-900">{selectedApp.personalData.phone || 'N/A'}</span>
+                          </div>
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">Dirección</span>
+                            <span className="font-bold text-slate-900">{selectedApp.personalData.address || 'N/A'}</span>
+                          </div>
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">Barrio de residencia</span>
+                            <span className="font-bold text-slate-900">
+                              {selectedApp.personalData.neighborhood === "Otro" 
+                                ? `Otro (${selectedApp.personalData.neighborhoodOption || ''})` 
+                                : (selectedApp.personalData.neighborhood || 'N/A')}
+                            </span>
+                          </div>
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">Estado Civil</span>
+                            <span className="font-bold text-slate-900">{selectedApp.personalData.civilStatus || 'N/A'}</span>
+                          </div>
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">Nivel Educativo</span>
+                            <span className="font-bold text-slate-900">{selectedApp.personalData.educationLevel || 'N/A'}</span>
+                          </div>
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">Integrantes en el Hogar</span>
+                            <span className="font-bold text-slate-900">{selectedApp.personalData.householdSize ?? 'N/A'}</span>
+                          </div>
+                          {selectedApp.personalData.presentationDate && (
+                            <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                              <span className="block text-[10px] text-slate-400 font-semibold uppercase">Fecha Presentación</span>
+                              <span className="font-bold text-slate-900">{selectedApp.personalData.presentationDate}</span>
+                            </div>
+                          )}
+                          {(selectedApp.personalData.creditNumberM2000 || selectedApp.personalData.previousCreditAmount) && (
+                            <div className="bg-slate-50 p-2.5 rounded border border-slate-100 col-span-2 sm:col-span-3">
+                              <span className="block text-[10px] text-slate-400 font-semibold uppercase">Antecedentes Crédito M2000</span>
+                              <span className="font-bold text-slate-900">
+                                Nº Crédito: {selectedApp.personalData.creditNumberM2000 || '-'} | Monto Previo: ${(selectedApp.personalData.previousCreditAmount || 0).toLocaleString('es-AR')}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PASO 2 — FINANZAS DEL HOGAR Y CAPACIDAD DE PAGO */}
+                    {selectedApp.householdFinance && (
+                      <div className="space-y-4 pt-4 border-t border-slate-100">
+                        <h4 className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1.5 border-b pb-1.5">
+                          <DollarSign className="w-3.5 h-3.5 text-emerald-600" /> Paso 2: Finanzas del Hogar y Capacidad de Pago
+                        </h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                          <div className="bg-slate-50 p-3 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-500 font-semibold uppercase">Ingresos Fijos</span>
+                            <span className="font-bold text-slate-900">${(selectedApp.householdFinance.fixedIncome || 0).toLocaleString('es-AR')}</span>
+                          </div>
+                          <div className="bg-slate-50 p-3 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-500 font-semibold uppercase">Ingresos Variables</span>
+                            <span className="font-bold text-slate-900">${(selectedApp.householdFinance.variableIncome || 0).toLocaleString('es-AR')}</span>
+                          </div>
+                          <div className="bg-slate-50 p-3 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-500 font-semibold uppercase">Gastos del Hogar</span>
+                            <span className="font-bold text-slate-900">
+                              ${((selectedApp.householdFinance.expenseFoodRent || 0) + (selectedApp.householdFinance.expenseServices || 0)).toLocaleString('es-AR')}
+                            </span>
+                          </div>
+                          <div className={`p-3 rounded border flex flex-col justify-center ${calculateSurplus(selectedApp) > 0 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
+                            <span className="text-[10px] text-slate-500 font-semibold uppercase">Excedente Estimado</span>
+                            <span className={`font-bold text-sm ${calculateSurplus(selectedApp) > 0 ? "text-emerald-700" : "text-red-700"}`}>
+                              ${calculateSurplus(selectedApp).toLocaleString('es-AR')}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Detailed Incomes Breakdown if available */}
+                        {selectedApp.householdFinance.detailedIncomes && (
+                          <div className="space-y-2">
+                            <h5 className="text-[11px] font-bold uppercase text-slate-500">Desglose de Ingresos Informados</h5>
+                            <div className="border border-slate-150 rounded-lg overflow-hidden text-xs bg-white shadow-3xs">
+                              <table className="w-full text-slate-700">
+                                <thead className="bg-slate-50 text-[10px] font-bold uppercase text-slate-500 border-b border-slate-150">
+                                  <tr>
+                                    <th className="p-2.5 text-left">Origen / Miembro</th>
+                                    <th className="p-2.5 text-right">Monto Mensual</th>
+                                    <th className="p-2.5 text-center">Clasificación</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                  {Number(selectedApp.householdFinance.detailedIncomes.applicant?.amount || 0) > 0 && (
+                                    <tr>
+                                      <td className="p-2.5 font-medium">Destinataria (Tú)</td>
+                                      <td className="p-2.5 text-right font-semibold">${Number(selectedApp.householdFinance.detailedIncomes.applicant.amount).toLocaleString('es-AR')}</td>
+                                      <td className="p-2.5 text-center">
+                                        <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-extrabold ${selectedApp.householdFinance.detailedIncomes.applicant.isFixed ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                                          {selectedApp.householdFinance.detailedIncomes.applicant.isFixed ? "Fijo" : "Variable"}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  )}
+                                  {Number(selectedApp.householdFinance.detailedIncomes.partner?.amount || 0) > 0 && (
+                                    <tr>
+                                      <td className="p-2.5 font-medium">Pareja</td>
+                                      <td className="p-2.5 text-right font-semibold">${Number(selectedApp.householdFinance.detailedIncomes.partner.amount).toLocaleString('es-AR')}</td>
+                                      <td className="p-2.5 text-center">
+                                        <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-extrabold ${selectedApp.householdFinance.detailedIncomes.partner.isFixed ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                                          {selectedApp.householdFinance.detailedIncomes.partner.isFixed ? "Fijo" : "Variable"}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  )}
+                                  {Number(selectedApp.householdFinance.detailedIncomes.family3?.amount || 0) > 0 && (
+                                    <tr>
+                                      <td className="p-2.5 font-medium">Familiar 3 {selectedApp.householdFinance.detailedIncomes.family3.name ? `(${selectedApp.householdFinance.detailedIncomes.family3.name})` : ''}</td>
+                                      <td className="p-2.5 text-right font-semibold">${Number(selectedApp.householdFinance.detailedIncomes.family3.amount).toLocaleString('es-AR')}</td>
+                                      <td className="p-2.5 text-center">
+                                        <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-extrabold ${selectedApp.householdFinance.detailedIncomes.family3.isFixed ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                                          {selectedApp.householdFinance.detailedIncomes.family3.isFixed ? "Fijo" : "Variable"}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  )}
+                                  {Number(selectedApp.householdFinance.detailedIncomes.family4?.amount || 0) > 0 && (
+                                    <tr>
+                                      <td className="p-2.5 font-medium">Familiar 4 {selectedApp.householdFinance.detailedIncomes.family4.name ? `(${selectedApp.householdFinance.detailedIncomes.family4.name})` : ''}</td>
+                                      <td className="p-2.5 text-right font-semibold">${Number(selectedApp.householdFinance.detailedIncomes.family4.amount).toLocaleString('es-AR')}</td>
+                                      <td className="p-2.5 text-center">
+                                        <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-extrabold ${selectedApp.householdFinance.detailedIncomes.family4.isFixed ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                                          {selectedApp.householdFinance.detailedIncomes.family4.isFixed ? "Fijo" : "Variable"}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  )}
+                                  {Number(selectedApp.householdFinance.detailedIncomes.others?.amount || 0) > 0 && (
+                                    <tr>
+                                      <td className="p-2.5 font-medium">Otros {selectedApp.householdFinance.detailedIncomes.others.name ? `(${selectedApp.householdFinance.detailedIncomes.others.name})` : ''}</td>
+                                      <td className="p-2.5 text-right font-semibold">${Number(selectedApp.householdFinance.detailedIncomes.others.amount).toLocaleString('es-AR')}</td>
+                                      <td className="p-2.5 text-center">
+                                        <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-extrabold ${selectedApp.householdFinance.detailedIncomes.others.isFixed ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                                          {selectedApp.householdFinance.detailedIncomes.others.isFixed ? "Fijo" : "Variable"}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  )}
+                                  {Number(selectedApp.householdFinance.detailedIncomes.stateAssistance?.amount || 0) > 0 && (
+                                    <tr>
+                                      <td className="p-2.5 font-medium">Ingreso del Estado (AUH/Pens.)</td>
+                                      <td className="p-2.5 text-right font-semibold">${Number(selectedApp.householdFinance.detailedIncomes.stateAssistance.amount).toLocaleString('es-AR')}</td>
+                                      <td className="p-2.5 text-center">
+                                        <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-extrabold ${selectedApp.householdFinance.detailedIncomes.stateAssistance.isFixed ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                                          {selectedApp.householdFinance.detailedIncomes.stateAssistance.isFixed ? "Fijo" : "Variable"}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Detailed Expenses Breakdown if available */}
+                        {selectedApp.householdFinance.detailedExpenses && (
+                          <div className="space-y-2">
+                            <h5 className="text-[11px] font-bold uppercase text-rose-500">Desglose de Gastos Informados</h5>
+                            <div className="border border-slate-150 rounded-lg overflow-hidden text-xs bg-white shadow-3xs">
+                              <table className="w-full text-slate-700">
+                                <thead className="bg-slate-50 text-[10px] font-bold uppercase text-slate-500 border-b border-slate-150">
+                                  <tr>
+                                    <th className="p-2.5 text-left">Categoría de Gasto</th>
+                                    <th className="p-2.5 text-right">Monto Promedio</th>
+                                    <th className="p-2.5 text-center">¿Varía?</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                  {(() => {
+                                    const expenseKeys: { key: string; label: string; isObject?: boolean }[] = [
+                                      { key: "alquiler", label: "🏠 Vivienda: Alquiler" },
+                                      { key: "agua", label: "🏠 Vivienda: Agua" },
+                                      { key: "luz", label: "🏠 Vivienda: Luz" },
+                                      { key: "gas", label: "🏠 Vivienda: Gas" },
+                                      { key: "sube", label: "🚌 Transporte: SUBE" },
+                                      { key: "naftaRemis", label: "🚌 Transporte: Nafta / Remis" },
+                                      { key: "telefonoCelular", label: "📱 Comunicación: Teléfono / Celular" },
+                                      { key: "internet", label: "📱 Comunicación: Internet" },
+                                      { key: "cable", label: "📱 Comunicación: Cable" },
+                                      { key: "comidaMercaderia", label: "🛒 Alimentación: Comida y Mercadería" },
+                                      { key: "cuotasDeudas", label: "💳 Deudas: Cuotas actuales" },
+                                      { key: "seguros", label: "💳 Deudas: Seguros" },
+                                      { key: "impuestos", label: "💳 Deudas: Impuestos (ABL/Mono/...)" },
+                                      { key: "educacion", label: "👨‍👩‍👧 Familia: Educación" },
+                                      { key: "salud", label: "👨‍👩‍👧 Familia: Salud" },
+                                      { key: "ropaCalzado", label: "👨‍👩‍👧 Familia: Ropa y Calzado" },
+                                      { key: "mascotas", label: "🐾 Otros: Mascotas" },
+                                      { key: "cigarrillos", label: "🐾 Otros: Cigarrillos" },
+                                      { key: "naftaOtros", label: "🐾 Otros: Nafta" },
+                                      { key: "otrosDetalle", label: "🐾 Otros: Especificado", isObject: true }
+                                    ];
+
+                                    return expenseKeys.map(({ key, label, isObject }) => {
+                                      const item = (selectedApp.householdFinance.detailedExpenses as any)?.[key];
+                                      if (!item) return null;
+                                      const amount = Number(item.amount || 0);
+                                      if (amount <= 0) return null;
+
+                                      const displayName = isObject && item.name ? `🐾 Otros: ${item.name}` : label;
+
+                                      return (
+                                        <tr key={key}>
+                                          <td className="p-2.5 font-medium">{displayName}</td>
+                                          <td className="p-2.5 text-right font-semibold">${amount.toLocaleString('es-AR')}</td>
+                                          <td className="p-2.5 text-center">
+                                            <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-extrabold ${item.varies ? "bg-rose-50 text-rose-700 border border-rose-200" : "bg-slate-50 text-slate-500 border border-slate-200"}`}>
+                                              {item.varies ? "Sí" : "No"}
+                                            </span>
+                                          </td>
+                                        </tr>
+                                      );
+                                    });
+                                  })()}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* PASO 3 — DATOS DEL EMPRENDIMIENTO */}
+                    {selectedApp.entrepreneurshipData && (
+                      <div className="space-y-4 pt-4 border-t border-slate-100">
+                        <h4 className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1.5 border-b pb-1.5">
+                          <Briefcase className="w-3.5 h-3.5 text-blue-600" /> Paso 3: Datos del Emprendimiento
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">Nombre del emprendimiento</span>
                             <span className="font-bold text-slate-900">{selectedApp.entrepreneurshipData.name || 'N/A'}</span>
                           </div>
-                          <div className="bg-slate-50 p-3 rounded">
-                            <span className="block text-[10px] text-slate-500">Actividad Principal</span>
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">Actividad Principal</span>
                             <span className="font-bold text-slate-900">{selectedApp.entrepreneurshipData.activity || 'N/A'}</span>
                           </div>
-                          <div className="bg-slate-50 p-3 rounded">
-                            <span className="block text-[10px] text-slate-500">Tipo de Negocio</span>
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">Tipo de Negocio</span>
                             <span className="font-bold text-slate-900">{selectedApp.entrepreneurshipData.type || 'N/A'}</span>
                           </div>
-                          <div className="bg-slate-50 p-3 rounded">
-                            <span className="block text-[10px] text-slate-500">Antigüedad</span>
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">Antigüedad</span>
                             <span className="font-bold text-slate-900">{selectedApp.entrepreneurshipData.seniority || 'N/A'}</span>
                           </div>
-                          <div className="bg-slate-50 p-3 rounded col-span-2">
-                            <span className="block text-[10px] text-slate-500">Lugar de venta</span>
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100 col-span-2">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">Lugar de venta</span>
                             <span className="font-bold text-slate-900">{selectedApp.entrepreneurshipData.salesPlace || 'N/A'}</span>
                           </div>
                         </div>
+
                         {selectedApp.entrepreneurshipData.description && (
-                          <div className="bg-slate-50 p-3 rounded">
-                            <span className="block text-[10px] text-slate-500 mb-1">Descripción</span>
-                            <p className="text-xs text-slate-700 italic leading-relaxed">
+                          <div className="bg-slate-50 p-3 rounded border border-slate-100 text-xs">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase mb-1">Descripción del Emprendimiento</span>
+                            <p className="text-slate-700 italic leading-relaxed">
                               &quot;{selectedApp.entrepreneurshipData.description}&quot;
                             </p>
                           </div>
                         )}
+
                         {selectedApp.entrepreneurshipData.socialNetworks && (
-                          <div className="bg-slate-50 p-3 rounded">
-                            <span className="block text-[10px] text-slate-500 mb-0.5">Redes Sociales</span>
-                            <span className="text-xs text-slate-800 font-semibold">{selectedApp.entrepreneurshipData.socialNetworks}</span>
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100 text-xs">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase mb-0.5">Redes Sociales</span>
+                            <span className="text-slate-800 font-semibold">{selectedApp.entrepreneurshipData.socialNetworks}</span>
                           </div>
                         )}
 
-                        {/* SECCIÓN 6 — PRESUPUESTO DEL EMPRENDIMIENTO (Planilla de Trabajo) */}
+                        {/* PLANILLA DE PRODUCTOS / SERVICIOS */}
                         {selectedApp.entrepreneurshipData.products && selectedApp.entrepreneurshipData.products.length > 0 && (
-                          <div className="space-y-2.5 mt-4 pt-4 border-t">
+                          <div className="space-y-2 mt-3 pt-3 border-t border-slate-100">
                             <h5 className="text-[11px] font-bold uppercase text-indigo-700 flex items-center gap-1">
                               <Calculator className="w-3.5 h-3.5" /> Planilla de Productos / Servicios (Presupuesto)
                             </h5>
@@ -1629,8 +1884,8 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
                         )}
 
                         {/* Costos Fijos, Viáticos y Margen del Emprendimiento */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 text-[11px]">
-                          <div className="bg-slate-50 p-3 rounded space-y-2 border">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3 text-[11px]">
+                          <div className="bg-slate-50 p-3 rounded space-y-2 border border-slate-100">
                             <span className="block text-[10px] font-bold uppercase text-slate-400">Costos de Operación</span>
                             <div className="grid grid-cols-2 gap-2">
                               <div>
@@ -1685,7 +1940,7 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
 
                         {/* REGISTRO HISTÓRICO DE VENTAS (ÚLTIMOS 3 MESES) */}
                         {selectedApp.entrepreneurshipData.accountingMonths && selectedApp.entrepreneurshipData.accountingMonths.length > 0 && (
-                          <div className="space-y-2 mt-4 pt-4 border-t">
+                          <div className="space-y-2 mt-3 pt-3 border-t border-slate-100">
                             <h5 className="text-[11px] font-bold uppercase text-slate-500 flex items-center gap-1">
                               <Calendar className="w-3.5 h-3.5 text-slate-400" /> Registro Histórico de Ventas (Últimos 3 Meses)
                             </h5>
@@ -1727,263 +1982,188 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
                       </div>
                     )}
 
-                    {/* Financial Capacity */}
-                    <div className="space-y-3">
-                      <h4 className="text-xs font-bold uppercase text-slate-400 flex items-center gap-1">
-                        <DollarSign className="w-3 h-3" /> Capacidad de Pago
-                      </h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-slate-50 p-3 rounded">
-                          <span className="block text-[10px] text-slate-500">Ingresos Fijos</span>
-                          <span className="font-bold text-slate-900">${(selectedApp.householdFinance.fixedIncome || 0).toLocaleString('es-AR')}</span>
-                        </div>
-                        <div className="bg-slate-50 p-3 rounded">
-                          <span className="block text-[10px] text-slate-500">Ingresos Var.</span>
-                          <span className="font-bold text-slate-900">${(selectedApp.householdFinance.variableIncome || 0).toLocaleString('es-AR')}</span>
-                        </div>
-                        <div className="bg-slate-50 p-3 rounded">
-                          <span className="block text-[10px] text-slate-500">Gastos Hogar</span>
-                          <span className="font-bold text-slate-900">
-                            ${((selectedApp.householdFinance.expenseFoodRent || 0) + (selectedApp.householdFinance.expenseServices || 0)).toLocaleString('es-AR')}
-                          </span>
-                        </div>
-                        <div className={`p-3 rounded flex flex-col justify-center ${calculateSurplus(selectedApp) > 0 ? "bg-green-50" : "bg-red-50"}`}>
-                          <span className="text-[10px] text-slate-500">Excedente</span>
-                          <span className={`font-bold ${calculateSurplus(selectedApp) > 0 ? "text-green-700" : "text-red-700"}`}>
-                            ${calculateSurplus(selectedApp).toLocaleString('es-AR')}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Detailed Incomes Breakdown if available */}
-                    {selectedApp.householdFinance.detailedIncomes && (
-                      <div className="space-y-2.5">
-                        <h4 className="text-xs font-bold uppercase text-slate-400">Desglose de Ingresos Informados</h4>
-                        <div className="border border-slate-150 rounded-lg overflow-hidden text-xs bg-white shadow-3xs">
-                          <table className="w-full text-slate-700">
-                            <thead className="bg-slate-50 text-[10px] font-bold uppercase text-slate-500 border-b border-slate-150">
-                              <tr>
-                                <th className="p-2.5 text-left">Origen / Miembro</th>
-                                <th className="p-2.5 text-right">Monto Mensual</th>
-                                <th className="p-2.5 text-center">Clasificación</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {/* 1. Destinataria */}
-                              {Number(selectedApp.householdFinance.detailedIncomes.applicant?.amount || 0) > 0 && (
-                                <tr>
-                                  <td className="p-2.5 font-medium">Destinataria (Tú)</td>
-                                  <td className="p-2.5 text-right font-semibold">${Number(selectedApp.householdFinance.detailedIncomes.applicant.amount).toLocaleString('es-AR')}</td>
-                                  <td className="p-2.5 text-center">
-                                    <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-extrabold ${selectedApp.householdFinance.detailedIncomes.applicant.isFixed ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
-                                      {selectedApp.householdFinance.detailedIncomes.applicant.isFixed ? "Fijo" : "Variable"}
-                                    </span>
-                                  </td>
-                                </tr>
-                              )}
-                              {/* 2. Pareja */}
-                              {Number(selectedApp.householdFinance.detailedIncomes.partner?.amount || 0) > 0 && (
-                                <tr>
-                                  <td className="p-2.5 font-medium">Pareja</td>
-                                  <td className="p-2.5 text-right font-semibold">${Number(selectedApp.householdFinance.detailedIncomes.partner.amount).toLocaleString('es-AR')}</td>
-                                  <td className="p-2.5 text-center">
-                                    <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-extrabold ${selectedApp.householdFinance.detailedIncomes.partner.isFixed ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
-                                      {selectedApp.householdFinance.detailedIncomes.partner.isFixed ? "Fijo" : "Variable"}
-                                    </span>
-                                  </td>
-                                </tr>
-                              )}
-                              {/* 3. Familiar 3 */}
-                              {Number(selectedApp.householdFinance.detailedIncomes.family3?.amount || 0) > 0 && (
-                                <tr>
-                                  <td className="p-2.5 font-medium">Familiar 3 {selectedApp.householdFinance.detailedIncomes.family3.name ? `(${selectedApp.householdFinance.detailedIncomes.family3.name})` : ''}</td>
-                                  <td className="p-2.5 text-right font-semibold">${Number(selectedApp.householdFinance.detailedIncomes.family3.amount).toLocaleString('es-AR')}</td>
-                                  <td className="p-2.5 text-center">
-                                    <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-extrabold ${selectedApp.householdFinance.detailedIncomes.family3.isFixed ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
-                                      {selectedApp.householdFinance.detailedIncomes.family3.isFixed ? "Fijo" : "Variable"}
-                                    </span>
-                                  </td>
-                                </tr>
-                              )}
-                              {/* 4. Familiar 4 */}
-                              {Number(selectedApp.householdFinance.detailedIncomes.family4?.amount || 0) > 0 && (
-                                <tr>
-                                  <td className="p-2.5 font-medium">Familiar 4 {selectedApp.householdFinance.detailedIncomes.family4.name ? `(${selectedApp.householdFinance.detailedIncomes.family4.name})` : ''}</td>
-                                  <td className="p-2.5 text-right font-semibold">${Number(selectedApp.householdFinance.detailedIncomes.family4.amount).toLocaleString('es-AR')}</td>
-                                  <td className="p-2.5 text-center">
-                                    <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-extrabold ${selectedApp.householdFinance.detailedIncomes.family4.isFixed ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
-                                      {selectedApp.householdFinance.detailedIncomes.family4.isFixed ? "Fijo" : "Variable"}
-                                    </span>
-                                  </td>
-                                </tr>
-                              )}
-                              {/* 5. Otros */}
-                              {Number(selectedApp.householdFinance.detailedIncomes.others?.amount || 0) > 0 && (
-                                <tr>
-                                  <td className="p-2.5 font-medium">Otros {selectedApp.householdFinance.detailedIncomes.others.name ? `(${selectedApp.householdFinance.detailedIncomes.others.name})` : ''}</td>
-                                  <td className="p-2.5 text-right font-semibold">${Number(selectedApp.householdFinance.detailedIncomes.others.amount).toLocaleString('es-AR')}</td>
-                                  <td className="p-2.5 text-center">
-                                    <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-extrabold ${selectedApp.householdFinance.detailedIncomes.others.isFixed ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
-                                      {selectedApp.householdFinance.detailedIncomes.others.isFixed ? "Fijo" : "Variable"}
-                                    </span>
-                                  </td>
-                                </tr>
-                              )}
-                              {/* 6. Ingreso del Estado */}
-                              {Number(selectedApp.householdFinance.detailedIncomes.stateAssistance?.amount || 0) > 0 && (
-                                <tr>
-                                  <td className="p-2.5 font-medium">Ingreso del Estado (AUH/Pens.)</td>
-                                  <td className="p-2.5 text-right font-semibold">${Number(selectedApp.householdFinance.detailedIncomes.stateAssistance.amount).toLocaleString('es-AR')}</td>
-                                  <td className="p-2.5 text-center">
-                                    <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-extrabold ${selectedApp.householdFinance.detailedIncomes.stateAssistance.isFixed ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
-                                      {selectedApp.householdFinance.detailedIncomes.stateAssistance.isFixed ? "Fijo" : "Variable"}
-                                    </span>
-                                  </td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Detailed Expenses Breakdown if available */}
-                    {selectedApp.householdFinance.detailedExpenses && (
-                      <div className="space-y-2.5">
-                        <h4 className="text-xs font-bold uppercase text-rose-400">Desglose de Gastos Informados</h4>
-                        <div className="border border-slate-150 rounded-lg overflow-hidden text-xs bg-white shadow-3xs">
-                          <table className="w-full text-slate-700">
-                            <thead className="bg-slate-50 text-[10px] font-bold uppercase text-slate-500 border-b border-slate-150">
-                              <tr>
-                                <th className="p-2.5 text-left">Categoría de Gasto</th>
-                                <th className="p-2.5 text-right">Monto Promedio</th>
-                                <th className="p-2.5 text-center">¿Varía?</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {(() => {
-                                const expenseKeys: { key: string; label: string; isObject?: boolean }[] = [
-                                  { key: "alquiler", label: "🏠 Vivienda: Alquiler" },
-                                  { key: "agua", label: "🏠 Vivienda: Agua" },
-                                  { key: "luz", label: "🏠 Vivienda: Luz" },
-                                  { key: "gas", label: "🏠 Vivienda: Gas" },
-                                  { key: "sube", label: "🚌 Transporte: SUBE" },
-                                  { key: "naftaRemis", label: "🚌 Transporte: Nafta / Remis" },
-                                  { key: "telefonoCelular", label: "📱 Comunicación: Teléfono / Celular" },
-                                  { key: "internet", label: "📱 Comunicación: Internet" },
-                                  { key: "cable", label: "📱 Comunicación: Cable" },
-                                  { key: "comidaMercaderia", label: "🛒 Alimentación: Comida y Mercadería" },
-                                  { key: "cuotasDeudas", label: "💳 Deudas: Cuotas actuales" },
-                                  { key: "seguros", label: "💳 Deudas: Seguros" },
-                                  { key: "impuestos", label: "💳 Deudas: Impuestos (ABL/Mono/...)" },
-                                  { key: "educacion", label: "👨‍👩‍👧 Familia: Educación" },
-                                  { key: "salud", label: "👨‍👩‍👧 Familia: Salud" },
-                                  { key: "ropaCalzado", label: "👨‍👩‍👧 Familia: Ropa y Calzado" },
-                                  { key: "mascotas", label: "🐾 Otros: Mascotas" },
-                                  { key: "cigarrillos", label: "🐾 Otros: Cigarrillos" },
-                                  { key: "naftaOtros", label: "🐾 Otros: Nafta" },
-                                  { key: "otrosDetalle", label: "🐾 Otros: Especificado", isObject: true }
-                                ];
-
-                                return expenseKeys.map(({ key, label, isObject }) => {
-                                  const item = (selectedApp.householdFinance.detailedExpenses as any)?.[key];
-                                  if (!item) return null;
-                                  const amount = Number(item.amount || 0);
-                                  if (amount <= 0) return null;
-
-                                  const displayName = isObject && item.name ? `🐾 Otros: ${item.name}` : label;
-
-                                  return (
-                                    <tr key={key}>
-                                      <td className="p-2.5 font-medium">{displayName}</td>
-                                      <td className="p-2.5 text-right font-semibold">${amount.toLocaleString('es-AR')}</td>
-                                      <td className="p-2.5 text-center">
-                                        <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-extrabold ${item.varies ? "bg-rose-50 text-rose-700 border border-rose-250" : "bg-slate-50 text-slate-500 border border-slate-200"}`}>
-                                          {item.varies ? "Sí" : "No"}
-                                        </span>
-                                      </td>
-                                    </tr>
-                                  );
-                                });
-                              })()}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Loan Details */}
-                    <div className="space-y-3">
-                      <h4 className="text-xs font-bold uppercase text-slate-400">Detalles del Préstamo</h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-slate-50 p-3 rounded">
-                          <span className="block text-[10px] text-slate-500">Monto Solicitado</span>
-                          <span className="font-bold text-primary">${selectedApp.loanDetails.requestedAmount.toLocaleString('es-AR')}</span>
-                        </div>
-                        <div className="bg-slate-50 p-3 rounded">
-                          <span className="block text-[10px] text-slate-500">Tipo</span>
-                          <span className="font-bold">{selectedApp.loanDetails.creditType || 'N/A'}</span>
-                        </div>
-                        <div className="bg-slate-50 p-3 rounded">
-                          <span className="block text-[10px] text-slate-500">Frecuencia</span>
-                          <span className="font-bold">{selectedApp.loanDetails.paymentFrequency === 'Weekly' ? 'Semanal' : 'Mensual'}</span>
-                        </div>
-                        <div className="bg-slate-50 p-3 rounded">
-                          <span className="block text-[10px] text-slate-500">Cuotas</span>
-                          <span className="font-bold">{selectedApp.loanDetails.installmentsCount || 6}</span>
-                        </div>
-                      </div>
-                      <div className="bg-slate-50 p-3 rounded">
-                        <span className="block text-[10px] text-slate-500 mb-1">Motivo del Microcrédito</span>
-                        <p className="text-xs text-slate-700 italic leading-relaxed">
-                          "{selectedApp.loanDetails.justification || 'Sin justificación'}"
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Photos Section */}
-                    <div className="space-y-4">
-                      <h4 className="text-xs font-bold uppercase text-slate-400">Documentación y Fotos</h4>
-                      
-                      {/* DNI */}
-                      {(selectedApp.personalData.dniFrontPhoto || selectedApp.personalData.dniBackPhoto) && (
-                        <div className="space-y-2">
-                          <span className="text-[10px] font-bold text-slate-500">DNI (Frente y Dorso)</span>
-                          <div className="grid grid-cols-2 gap-2">
-                            {selectedApp.personalData.dniFrontPhoto ? (
-                              <a href={selectedApp.personalData.dniFrontPhoto} target="_blank" rel="noreferrer" className="relative aspect-video rounded border overflow-hidden group">
-                                <img src={selectedApp.personalData.dniFrontPhoto} alt="DNI Front" className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <ExternalLink className="w-4 h-4 text-white" />
-                                </div>
-                              </a>
-                            ) : <div className="aspect-video bg-slate-100 rounded flex items-center justify-center text-[10px] text-slate-400 italic">Sin foto</div>}
-                            
-                            {selectedApp.personalData.dniBackPhoto ? (
-                              <a href={selectedApp.personalData.dniBackPhoto} target="_blank" rel="noreferrer" className="relative aspect-video rounded border overflow-hidden group">
-                                <img src={selectedApp.personalData.dniBackPhoto} alt="DNI Back" className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <ExternalLink className="w-4 h-4 text-white" />
-                                </div>
-                              </a>
-                            ) : <div className="aspect-video bg-slate-100 rounded flex items-center justify-center text-[10px] text-slate-400 italic">Sin foto</div>}
+                    {/* PASO 4 — DETALLES DEL PRÉSTAMO SOLICITADO Y DOCUMENTACIÓN */}
+                    {selectedApp.loanDetails && (
+                      <div className="space-y-4 pt-4 border-t border-slate-100">
+                        <h4 className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1.5 border-b pb-1.5">
+                          <FileText className="w-3.5 h-3.5 text-amber-600" /> Paso 4: Detalles del Préstamo Solicitado
+                        </h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">Monto Solicitado</span>
+                            <span className="font-bold text-primary text-sm">${selectedApp.loanDetails.requestedAmount.toLocaleString('es-AR')}</span>
+                          </div>
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">Tipo / Línea de Crédito</span>
+                            <span className="font-bold text-slate-900">{selectedApp.loanDetails.creditType || 'N/A'}</span>
+                          </div>
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">Frecuencia de Pago</span>
+                            <span className="font-bold text-slate-900">{selectedApp.loanDetails.paymentFrequency === 'Weekly' ? 'Semanal' : 'Mensual'}</span>
+                          </div>
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">Cantidad de Cuotas</span>
+                            <span className="font-bold text-slate-900">{selectedApp.loanDetails.installmentsCount || 6} cuotas</span>
                           </div>
                         </div>
-                      )}
 
-                      {/* Presupuesto */}
-                      <div className="space-y-2">
-                        <span className="text-[10px] font-bold text-slate-500">Presupuesto</span>
-                        {selectedApp.loanDetails.budgetPhoto ? (
-                          <a href={selectedApp.loanDetails.budgetPhoto} target="_blank" rel="noreferrer" className="relative w-full aspect-video rounded border overflow-hidden group">
-                            <img src={selectedApp.loanDetails.budgetPhoto} alt="Budget" className="w-full h-full object-cover" />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <ExternalLink className="w-5 h-5 text-white" />
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">¿Es Renovación?</span>
+                            <span className="font-bold text-slate-900">{selectedApp.loanDetails.isRenovation || 'No'}</span>
+                          </div>
+                          {selectedApp.loanDetails.isRenovation === "Si" && (
+                            <div className="bg-slate-50 p-2.5 rounded border border-slate-100 sm:col-span-2">
+                              <span className="block text-[10px] text-slate-400 font-semibold uppercase">Objetivo Crédito Previo</span>
+                              <span className="font-bold text-slate-900">{selectedApp.loanDetails.previousCreditObjective || 'N/A'}</span>
                             </div>
-                          </a>
-                        ) : <div className="py-4 text-center text-[10px] text-slate-400 italic bg-slate-50 rounded">Sin presupuesto cargado</div>}
+                          )}
+                          <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 font-semibold uppercase">Destino del Crédito</span>
+                            <span className="font-bold text-indigo-700">{selectedApp.loanDetails.creditUseType || 'Insumos'}</span>
+                          </div>
+                        </div>
+
+                        <div className="bg-slate-50 p-3 rounded border border-slate-100 text-xs">
+                          <span className="block text-[10px] text-slate-400 font-semibold uppercase mb-1">Motivo / Justificación del Microcrédito</span>
+                          <p className="text-slate-700 italic leading-relaxed">
+                            &quot;{selectedApp.loanDetails.justification || 'Sin justificación'}&quot;
+                          </p>
+                        </div>
+
+                        {/* Detalle de Maquinaria si aplica */}
+                        {selectedApp.loanDetails.creditUseType === 'Maquinaria' && selectedApp.loanDetails.machineryDetails && (
+                          <div className="space-y-3 p-3.5 bg-indigo-50/40 border border-indigo-150 rounded-lg text-xs">
+                            <h5 className="text-[11px] font-bold uppercase text-indigo-800 flex items-center gap-1">
+                              <Calculator className="w-3.5 h-3.5" /> Detalle de la Maquinaria a Adquirir
+                            </h5>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                              <div>
+                                <span className="block text-[9px] text-slate-500 font-semibold uppercase">Tipo / Nombre</span>
+                                <span className="font-bold text-slate-900">{selectedApp.loanDetails.machineryDetails.machineryType || 'N/A'}</span>
+                              </div>
+                              <div>
+                                <span className="block text-[9px] text-slate-500 font-semibold uppercase">Marca</span>
+                                <span className="font-bold text-slate-900">{selectedApp.loanDetails.machineryDetails.brand || 'N/A'}</span>
+                              </div>
+                              <div>
+                                <span className="block text-[9px] text-slate-500 font-semibold uppercase">Condición</span>
+                                <span className="font-bold text-slate-900">{selectedApp.loanDetails.machineryDetails.condition || 'Nueva'}</span>
+                              </div>
+                              {selectedApp.loanDetails.machineryDetails.condition === 'Usada' && (
+                                <div>
+                                  <span className="block text-[9px] text-slate-500 font-semibold uppercase">Años de uso</span>
+                                  <span className="font-bold text-slate-900">{selectedApp.loanDetails.machineryDetails.usedYears || 'N/A'}</span>
+                                </div>
+                              )}
+                              <div>
+                                <span className="block text-[9px] text-slate-500 font-semibold uppercase">Garantía</span>
+                                <span className="font-bold text-slate-900">
+                                  {selectedApp.loanDetails.machineryDetails.hasWarranty === 'Si' ? `Sí (${selectedApp.loanDetails.machineryDetails.warrantyDuration || ''})` : 'No'}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="block text-[9px] text-slate-500 font-semibold uppercase">Lugar de compra</span>
+                                <span className="font-bold text-slate-900">{selectedApp.loanDetails.machineryDetails.purchasePlace || 'N/A'}</span>
+                              </div>
+                              <div>
+                                <span className="block text-[9px] text-slate-500 font-semibold uppercase">Envío a domicilio</span>
+                                <span className="font-bold text-slate-900">
+                                  {selectedApp.loanDetails.machineryDetails.shippedToHome === 'Si' ? `Sí (Costo: $${(selectedApp.loanDetails.machineryDetails.shippingCost || 0).toLocaleString('es-AR')})` : 'No'}
+                                </span>
+                              </div>
+                            </div>
+                            {selectedApp.loanDetails.machineryDetails.whyThisOption && (
+                              <div>
+                                <span className="block text-[9px] text-slate-500 font-semibold uppercase">¿Por qué esta opción?</span>
+                                <p className="text-slate-700 italic">{selectedApp.loanDetails.machineryDetails.whyThisOption}</p>
+                              </div>
+                            )}
+                            {selectedApp.loanDetails.machineryDetails.estimatedBenefit && (
+                              <div>
+                                <span className="block text-[9px] text-slate-500 font-semibold uppercase">Beneficio estimado para el negocio</span>
+                                <p className="text-slate-700 italic">{selectedApp.loanDetails.machineryDetails.estimatedBenefit}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Fotos y Documentación */}
+                        <div className="space-y-3 pt-2">
+                          <h5 className="text-[11px] font-bold uppercase text-slate-500">Documentación Adjunta y Fotos</h5>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {/* DNI */}
+                            <div className="space-y-1 bg-slate-50 p-2.5 rounded border border-slate-100">
+                              <span className="text-[10px] font-bold text-slate-500">DNI (Frente y Dorso)</span>
+                              <div className="grid grid-cols-2 gap-2 pt-1">
+                                {selectedApp.personalData.dniFrontPhoto ? (
+                                  <a href={selectedApp.personalData.dniFrontPhoto} target="_blank" rel="noreferrer" className="relative aspect-video rounded border overflow-hidden group">
+                                    <img src={selectedApp.personalData.dniFrontPhoto} alt="DNI Front" className="w-full h-full object-cover" />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                      <ExternalLink className="w-4 h-4 text-white" />
+                                    </div>
+                                  </a>
+                                ) : <div className="aspect-video bg-slate-100 rounded flex items-center justify-center text-[10px] text-slate-400 italic">Sin foto frente</div>}
+                                
+                                {selectedApp.personalData.dniBackPhoto ? (
+                                  <a href={selectedApp.personalData.dniBackPhoto} target="_blank" rel="noreferrer" className="relative aspect-video rounded border overflow-hidden group">
+                                    <img src={selectedApp.personalData.dniBackPhoto} alt="DNI Back" className="w-full h-full object-cover" />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                      <ExternalLink className="w-4 h-4 text-white" />
+                                    </div>
+                                  </a>
+                                ) : <div className="aspect-video bg-slate-100 rounded flex items-center justify-center text-[10px] text-slate-400 italic">Sin foto dorso</div>}
+                              </div>
+                            </div>
+
+                            {/* Presupuesto */}
+                            <div className="space-y-1 bg-slate-50 p-2.5 rounded border border-slate-100">
+                              <span className="text-[10px] font-bold text-slate-500">Comprobante de Presupuesto</span>
+                              <div className="pt-1">
+                                {selectedApp.loanDetails.budgetPhoto ? (
+                                  <a href={selectedApp.loanDetails.budgetPhoto} target="_blank" rel="noreferrer" className="relative w-full aspect-video rounded border overflow-hidden group block">
+                                    <img src={selectedApp.loanDetails.budgetPhoto} alt="Budget" className="w-full h-full object-cover" />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                      <ExternalLink className="w-5 h-5 text-white" />
+                                    </div>
+                                  </a>
+                                ) : <div className="py-4 text-center text-[10px] text-slate-400 italic bg-slate-100 rounded">Sin presupuesto cargado</div>}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
+                    )}
+
+                    {/* PASO 5 — DATOS DE DESEMBOLSO */}
+                    <div className="space-y-3 pt-4 border-t border-slate-100">
+                      <h4 className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1.5 border-b pb-1.5">
+                        <Landmark className="w-3.5 h-3.5 text-purple-600" /> Paso 5: Datos de Desembolso (Cuenta Bancaria / Billetera Virtual)
+                      </h4>
+                      {selectedApp.disbursementInfo ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                          <div className="bg-purple-50/50 p-3 rounded border border-purple-100">
+                            <span className="block text-[10px] text-purple-700 font-semibold uppercase">Entidad (Banco / Billetera)</span>
+                            <span className="font-bold text-purple-950 text-sm">{selectedApp.disbursementInfo.bankOrWallet || 'No especificada'}</span>
+                          </div>
+                          <div className="bg-slate-50 p-3 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-500 font-semibold uppercase">Titular de la Cuenta</span>
+                            <span className="font-bold text-slate-900">{selectedApp.disbursementInfo.accountHolder || 'No especificado'}</span>
+                          </div>
+                          <div className="bg-slate-50 p-3 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-500 font-semibold uppercase">Alias</span>
+                            <span className="font-bold text-indigo-700 font-mono text-sm">{selectedApp.disbursementInfo.alias || 'No especificado'}</span>
+                          </div>
+                          <div className="bg-slate-50 p-3 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-500 font-semibold uppercase">CBU / CVU</span>
+                            <span className="font-bold text-slate-900 font-mono text-xs select-all">{selectedApp.disbursementInfo.cbu || 'No especificado'}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-amber-50 text-amber-800 rounded text-xs italic">
+                          No se registraron datos de desembolso para esta solicitud.
+                        </div>
+                      )}
                     </div>
 
                     {/* Entrepreneur Loans & Scoring History - Scoring per loan */}
