@@ -1170,61 +1170,6 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
 
   return (
     <div className="max-w-[1600px] mx-auto p-4 sm:p-6 pb-20 sm:pb-6">
-      {/* Demo Tools Bar - Moved up and simplified */}
-      <div className="flex justify-end gap-2 mb-4">
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={renumberAllApplications}
-          className="bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 h-8 text-xs shrink-0"
-        >
-          <History className="w-3 h-3 mr-2" />
-          Numerar Base Actual
-        </Button>
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={loadDemoData}
-          className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 h-8 text-xs shrink-0"
-        >
-          <Database className="w-3 h-3 mr-2" />
-          Cargar Datos Demo
-        </Button>
-        {isSelectionMode && (
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => {
-              setIsSelectionMode(false);
-              setSelectedDeleteIds([]);
-            }}
-            className="h-8 text-xs text-slate-600 hover:bg-slate-100 shrink-0"
-          >
-            Cancelar
-          </Button>
-        )}
-        <Button 
-          variant={isSelectionMode && selectedDeleteIds.length > 0 ? "default" : "outline"}
-          size="sm"
-          onClick={clearDemoData}
-          className={`${
-            isSelectionMode 
-              ? selectedDeleteIds.length > 0
-                ? "bg-red-600 text-white hover:bg-red-700 hover:text-white border-red-600 h-8 text-xs font-bold shrink-0 shadow-sm"
-                : "bg-red-50 text-red-400 border-red-100 hover:bg-red-50 h-8 text-xs shrink-0 cursor-pointer"
-              : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 h-8 text-xs shrink-0"
-          }`}
-        >
-          <Trash2 className="w-3 h-3 mr-2" />
-          {isSelectionMode 
-            ? selectedDeleteIds.length > 0 
-              ? `Limpiar selección (${selectedDeleteIds.length})` 
-              : "Limpiar seleccion" 
-            : "Limpiar Demo"
-          }
-        </Button>
-      </div>
-
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="border-b border-slate-200 w-full overflow-x-auto scrollbar-hide focus-visible:outline-none mb-4">
           <TabsList className="bg-transparent h-auto p-0 flex justify-start sm:justify-center gap-4 sm:gap-8 md:gap-12 rounded-none w-max min-w-full pb-1">
