@@ -35,9 +35,9 @@ El diseño arquitectónico sigue el patrón de **Single Page Application (SPA) f
     *   **Tailwind CSS V4**: Framework de utilidades CSS de última generación para lograr un diseño de alta fidelidad, fluido, responsive e integrador.
     *   **Motion**: Librería para orquestar micro-interacciones suaves y transiciones fluidas de los formularios.
     *   **Lucide React**: Biblioteca unificada para consistencia iconográfica en toda la interfaz.
-*   **Servidor Backend / Proxy**:
-    *   **Express**: Servidor ligero en Node.js que actúa como proxy para proteger variables de entorno sensibles (las claves de la API de IA se resuelven en servidor) y servir la SPA optimizada en producción.
-    *   **Esbuild**: Compilador de alto rendimiento utilizado para empaquetar el servidor TypeScript a CommonJS nativo (`dist/server.cjs`).
+*   **Backend / API**:
+    *   **Express**: Servidor ligero en Node.js usado en desarrollo local para servir la SPA junto al middleware de Vite y exponer las rutas de API.
+    *   **Vercel Serverless Functions**: En producción, las rutas de API (`api/upload-signature.ts`, `api/chat.ts`) se despliegan como funciones serverless independientes, reutilizando la misma lógica (`lib/server/`) que el servidor Express local, protegiendo así las variables de entorno sensibles (Cloudinary, Gemini) del cliente.
 *   **Base de Datos y Autenticación (Firebase)**:
     *   **Firebase Authentication**: Provee gestión de identidades segura, control de sesiones, cifrado y tokens JWT.
     *   **Cloud Firestore Database**: Base de datos NoSQL documental y en tiempo real, con diseño schema-free sumamente rápido que facilita adaptabilidad en los datos recopilados de las emprendedoras.

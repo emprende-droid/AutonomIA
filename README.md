@@ -26,9 +26,9 @@ La plataforma está diseñada siguiendo el patrón de **Single Page Application 
   * **Tailwind CSS V4**: Estilos utilitarios fluidos y diseño completamente adaptativo (responsivo).
   * **Motion**: Orquestador de transiciones y micro-interacciones interactivas en los formularios multi-paso.
   * **Recharts / D3**: Visualización interactiva de estadísticas de créditos y cobrabilidad en la consola de administración.
-* **Servidor Backend (Proxy / API)**:
-  * **Express (Node.js)**: Actúa como proxy inverso seguro y servidor web de producción. Sirve los archivos estáticos compilados de la SPA y gestiona de manera segura los secretos que no deben exponerse al cliente (como credenciales de almacenamiento en Cloudinary).
-  * **Esbuild**: Integrado en el pipeline de compilación para agrupar y convertir el servidor TypeScript en un único archivo modular CommonJS nativo (`dist/server.cjs`), evitando fricciones de resolución de rutas en el entorno de ejecución.
+* **Backend (API)**:
+  * **Express (Node.js)**: Usado en desarrollo local (`npm run dev`) para servir la SPA junto al middleware de Vite y exponer las rutas de API.
+  * **Vercel Serverless Functions**: En producción, la lógica de las rutas de API (`/api/upload-signature`, `/api/chat`) se despliega como funciones serverless independientes bajo el directorio `api/`, compartiendo la misma implementación que usa el servidor Express local (`lib/server/`). Los secretos de infraestructura (Cloudinary, Gemini) nunca se exponen al cliente.
 * **Base de Datos y Autenticación**:
   * **Firebase Authentication**: Gestión de sesiones de usuaria, registros, accesos de administración y generación de tokens JWT.
   * **Cloud Firestore**: Base de datos NoSQL de documentos en tiempo real.
@@ -122,20 +122,11 @@ Sigue estos pasos para levantar un entorno de desarrollo local limpio y 100% gra
    ```
    Abre [http://localhost:3000](http://localhost:3000) en tu navegador para ver la plataforma funcionando en tiempo real.
 
-4. **Compilar para Producción**:
-   Cuando la aplicación esté lista para ser desplegada, compílala usando:
-   ```bash
-   npm run build
-   ```
-   Este comando realizará dos tareas críticas:
-   * Compilará todos los assets de frontend (React + Tailwind CSS) en la carpeta `dist/`.
-   * Agrupará y transpilará el servidor Express TypeScript en un bundle unificado de backend localizado en `dist/server.cjs`.
-
-5. **Iniciar la Aplicación Compilada (Producción)**:
-   Puedes arrancar el servidor en su estado optimizado de producción con:
-   ```bash
-   npm run start
-   ```
+4. **Desplegar a Producción (Vercel)**:
+   La aplicación está pensada para desplegarse en [Vercel](https://vercel.com):
+   * `npm run build` compila los assets de frontend (React + Tailwind CSS) en la carpeta `dist/`, que Vercel detecta y sirve automáticamente como sitio estático.
+   * Las rutas bajo `api/` (`upload-signature.ts`, `chat.ts`) se despliegan automáticamente como funciones serverless — no requieren un paso de build aparte.
+   * Configura las variables de entorno (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `GEMINI_API_KEY`) en el panel de **Settings → Environment Variables** del proyecto en Vercel.
 
 ---
 
