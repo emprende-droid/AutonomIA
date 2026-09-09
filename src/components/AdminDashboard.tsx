@@ -11,8 +11,8 @@ import {
   setDoc,
   deleteField
 } from "firebase/firestore";
-import { db, storage, auth } from "../firebase";
-import { ref, uploadString, getDownloadURL } from "firebase/storage";
+import { db, auth } from "../firebase";
+import { compressForUpload, getUploadSignature, uploadToCloudinary } from "../lib/cloudinaryUpload";
 import { LoanApplication } from "../types";
 import { 
   Card, 
@@ -574,78 +574,20 @@ export default function AdminDashboard({ defaultTab = "applications" }: { defaul
     if (!file || !app.paymentSchedule) return;
 
     try {
-      // 1. Process files and obtain clean compressed base64 FIRST before any state changes (crucial for iOS Safari)
-      const base64String = await new Promise<string>((resolve, reject) => {
-        if (file.type.startsWith("image/")) {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
-              const canvas = document.createElement("canvas");
-              const maxWidth = 1200;
-              const maxHeight = 1200;
-              let width = img.width;
-              let height = img.height;
+      const folder = `payments/${app.id}`;
+      const fileNameBase = `installment_${installmentNumber}`;
 
-              if (width > height) {
-                if (width > maxWidth) {
-                  height = Math.round((height * maxWidth) / width);
-                  width = maxWidth;
-                }
-              } else {
-                if (height > maxHeight) {
-                  width = Math.round((width * maxHeight) / height);
-                  height = maxHeight;
-                }
-              }
+      // Compress and fetch the upload signature in parallel (independent work)
+      const [base64String, signature] = await Promise.all([
+        compressForUpload(file),
+        getUploadSignature(folder, fileNameBase),
+      ]);
 
-              canvas.width = width;
-              canvas.height = height;
-              const ctx = canvas.getContext("2d");
-              if (!ctx) {
-                resolve(event.target?.result as string);
-                return;
-              }
-              ctx.drawImage(img, 0, 0, width, height);
-              resolve(canvas.toDataURL("image/jpeg", 0.7));
-            };
-            img.onerror = () => resolve(event.target?.result as string);
-            img.src = event.target?.result as string;
-          };
-          reader.onerror = (err) => reject(err);
-          reader.readAsDataURL(file);
-        } else {
-          // For non-images, read normally
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = (err) => reject(err);
-          reader.readAsDataURL(file);
-        }
-      });
-
-      // 2. Set the uploading state and show loading toast
       toast.loading("Subiendo comprobante...", { id: "upload-toast" });
-      
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          base64: base64String,
-          folder: `payments/${app.id}`,
-          fileName: `installment_${installmentNumber}`,
-        }),
-      });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Error en la subida al servidor");
-      }
+      const url = await uploadToCloudinary(base64String, folder, signature);
 
-      const { url } = await response.json();
-
-      const updatedInstallments = app.paymentSchedule.installments.map(inst => 
+      const updatedInstallments = app.paymentSchedule.installments.map(inst =>
         inst.number === installmentNumber ? { ...inst, paymentProofUrl: url, status: 'Pending' as const } : inst
       );
 

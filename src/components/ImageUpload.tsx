@@ -1,9 +1,7 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { toast } from "sonner";
-import { ref, uploadString, getDownloadURL } from "firebase/storage";
-import { storage } from "../firebase";
 import { Camera, Upload, X, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { compressForUpload, getUploadSignature, uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 interface Props {
   value: string;
@@ -22,80 +20,15 @@ export default function ImageUpload({ value, onChange, label, folder, accept = "
     if (!file) return;
 
     try {
-      // 1. Process files and obtain clean compressed base64 FIRST before any state changes (crucial for iOS Safari)
-      const base64String = await new Promise<string>((resolve, reject) => {
-        if (file.type.startsWith("image/")) {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
-              const canvas = document.createElement("canvas");
-              const maxWidth = 1200;
-              const maxHeight = 1200;
-              let width = img.width;
-              let height = img.height;
+      // Compress and fetch the upload signature in parallel (independent work);
+      // wait for both to finish BEFORE any state changes (crucial for iOS Safari)
+      const [base64String, signature] = await Promise.all([
+        compressForUpload(file),
+        getUploadSignature(folder, file.name),
+      ]);
 
-              if (width > height) {
-                if (width > maxWidth) {
-                  height = Math.round((height * maxWidth) / width);
-                  width = maxWidth;
-                }
-              } else {
-                if (height > maxHeight) {
-                  width = Math.round((width * maxHeight) / height);
-                  height = maxHeight;
-                }
-              }
-
-              canvas.width = width;
-              canvas.height = height;
-              const ctx = canvas.getContext("2d");
-              if (!ctx) {
-                resolve(event.target?.result as string);
-                return;
-              }
-              ctx.drawImage(img, 0, 0, width, height);
-              resolve(canvas.toDataURL("image/jpeg", 0.7));
-            };
-            img.onerror = () => resolve(event.target?.result as string);
-            img.src = event.target?.result as string;
-          };
-          reader.onerror = (err) => reject(err);
-          reader.readAsDataURL(file);
-        } else {
-          // For non-images, read normally
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = (err) => reject(err);
-          reader.readAsDataURL(file);
-        }
-      });
-
-      // 2. Set the uploading state now that file has been safely converted
       setUploading(true);
-      
-      console.log("Starting server-side upload for:", file.name);
-      
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          base64: base64String,
-          folder: folder,
-          fileName: file.name,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Error en la subida al servidor");
-      }
-
-      const { url } = await response.json();
-      console.log("Upload completed successfully:", url);
-      
+      const url = await uploadToCloudinary(base64String, folder, signature);
       onChange(url);
       toast.success("Imagen subida correctamente");
     } catch (error: any) {
