@@ -6,3 +6,12 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Firebase service account keys — grant full admin on the database. Never commit.
+*-firebase-adminsdk-*.json
+
+# Database exports — contain applicant PII (DNI, CUIL, address, income, CBU)
+backup-*.json
+
+# Windows alternate-data-stream metadata
+*:Zone.Identifier
