@@ -80,6 +80,8 @@ export interface HouseholdFinance {
   expenseFoodRent: number;
   expenseServices: number;
   detailedIncomes?: DetailedIncomes;
+  /** Available savings. Recorded for context; deliberately not counted as income. */
+  savings?: number;
   detailedExpenses?: DetailedExpenses;
   debtInstallments?: number;
   incomeEarnersCount?: number;
@@ -103,7 +105,14 @@ export interface AccountingMonth {
 export interface EntrepreneurshipData {
   name: string;
   activity: string;
+  /**
+   * Human-readable seniority, e.g. "6 años". Kept as the canonical value so
+   * existing records and every consumer (admin panel, validation) keep working.
+   * seniorityValue/seniorityUnit are the structured form behind the input.
+   */
   seniority: string;
+  seniorityValue?: number;
+  seniorityUnit?: 'meses' | 'años';
   description: string;
   type: 'Comercial' | 'Productivo' | 'Servicios';
   socialNetworks?: string;
@@ -155,7 +164,8 @@ export interface LoanDetails {
   // New PDF conditional fields
   isRenovation?: string;
   previousCreditObjective?: string;
-  creditUseType?: 'Insumos' | 'Maquinaria';
+  creditUseType?: 'Insumos' | 'Maquinaria' | 'Otro';
+  creditUseOther?: string;
   machineryDetails?: MachineryDetails;
 }
 
