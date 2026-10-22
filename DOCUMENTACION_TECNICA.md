@@ -24,7 +24,7 @@ El diseño arquitectónico sigue el patrón de **Single Page Application (SPA) f
 [ Firebase Auth ] <----> [ Firestore DB ] <----> [ EXPRESS BACKEND ]
                             ^                         |
                             |                         v
-                    [ Security Rules ]        [ Gemini GenAI SDK ]
+                    [ Security Rules ]        [ Cloudinary ]
 ```
 
 ### Stack Tecnológico Principal
@@ -37,7 +37,7 @@ El diseño arquitectónico sigue el patrón de **Single Page Application (SPA) f
     *   **Lucide React**: Biblioteca unificada para consistencia iconográfica en toda la interfaz.
 *   **Backend / API**:
     *   **Express**: Servidor ligero en Node.js usado en desarrollo local para servir la SPA junto al middleware de Vite y exponer las rutas de API.
-    *   **Vercel Serverless Functions**: En producción, las rutas de API (`api/upload-signature.ts`, `api/chat.ts`) se despliegan como funciones serverless independientes, reutilizando la misma lógica (`lib/server/`) que el servidor Express local, protegiendo así las variables de entorno sensibles (Cloudinary, Gemini) del cliente.
+    *   **Vercel Serverless Functions**: En producción, las rutas de API (`api/upload-signature.ts`) se despliegan como funciones serverless independientes, reutilizando la misma lógica (`lib/server/`) que el servidor Express local, protegiendo así las variables de entorno sensibles (Cloudinary) del cliente.
 *   **Base de Datos y Autenticación (Firebase)**:
     *   **Firebase Authentication**: Provee gestión de identidades segura, control de sesiones, cifrado y tokens JWT.
     *   **Cloud Firestore Database**: Base de datos NoSQL documental y en tiempo real, con diseño schema-free sumamente rápido que facilita adaptabilidad en los datos recopilados de las emprendedoras.
@@ -103,10 +103,6 @@ Panel reservado exclusivamente a coordinadores con rol `'admin'` que integra:
 *   **Planificador de Pagos y Cobranzas (PaymentManager)**: Generación automática de planes de amortización de cuotas y herramientas rápidas para tildar el estado de cobro manual y asociar comprobantes de pago.
 *   **Exportación de Datos con Precisión Financiera**: Motor de conversión a CSV que traduce la grilla completa de solicitudes, incluyendo campos socioeconómicos detallados de cada emprendedora y garantizando que los valores monetarios mantengan formato en español con puntos de miles para su procesamiento directo en herramientas como Excel o Google Sheets.
 
-### C. Chatbot Asistente Virtual Gemini AI
-*   Conectado vía backend usando la SDK `@google/genai` con modelo Gemini, evitando la exposición del API Key en el navegador de la usuaria.
-*   Actúa como navegador conceptual y guía empática, con un prompt del sistema instruido específicamente para comprender el contexto de inclusión financiera de Mujeres 2000.
-
 ---
 
 ## 5. Prácticas de Ciberseguridad Implementadas
@@ -118,7 +114,7 @@ Panel reservado exclusivamente a coordinadores con rol `'admin'` que integra:
     *   Cualquier intento de suplantación de identidad para consultar información ajena sea bloqueado por defecto.
     *   Los miembros del equipo operativo (`role == 'admin'`, además del correo por defecto preestablecido `mariano.imbrogno@gmail.com`) posean superusuario para auditorías exhaustivas, creación y depuración en colecciones de scoring y configuración general.
 2.  **Encapsulado de Secretos**:
-    El SDK de Gemini se declara e inicializa única y exclusivamente en el entorno del servidor (`server.ts`). El frontend realiza llamadas a un endpoint secundario (`/api/chat` o similar), de manera que las llaves de acceso del proveedor en la nube nunca son transmitidas al explorador.
+    Las credenciales de Cloudinary se usan únicamente del lado del servidor, en `lib/server/cloudinary.ts`. El navegador pide una firma a `/api/upload-signature` y sube el archivo directamente a Cloudinary, de modo que la clave secreta nunca viaja al explorador.
 3.  **Sanitizado de Datos**:
     Uso extensivo de validaciones tipadas en TypeScript para prevenir corrupciones y mitigación de inyección mediante escape de textos especiales durante la exportación a formato CSV.
 
@@ -137,7 +133,7 @@ Para desplegar la aplicación ante el público general con los más altos están
 3.  **Aislamiento de Operaciones Críticas mediante Cloud Functions**:
     Acciones como la aprobación formal del préstamo, desestimaciones y creación de la grilla de reembolsos de capital deben removerse de la escritura directa en Firestore del cliente. En su lugar, el cliente debe invocar llamadas HTTP seguras hacia **Cloud Functions de Firebase (v2/Node)** que operen con privilegios acotados de Service Accounts.
 4.  **Políticas de Cuotas y Limitación de Tasa (Rate Limiting)**:
-    Configurar en el servidor de producción políticas de *Rate Limiting* (ej. `express-rate-limit`) tanto para las rutas orientadas a la simulación como para el bot inteligente de Gemini. Esto previene ataques de Denegación de Servicio (DoS) y el agotamiento de presupuesto debido al consumo repetitivo de APIs pagas de IA.
+    Configurar en el servidor de producción políticas de *Rate Limiting* (ej. `express-rate-limit`) para las rutas de la API, en particular la de firma de subidas. Esto previene ataques de Denegación de Servicio (DoS) y el abuso de la cuenta de Cloudinary de la organización.
 5.  **Historial de Cambios Absoluto (Audit Trail Audit-Log)**:
     Configurar disparadores distribuidos para loguear cada vez que un `'admin'` modifica el estado de un préstamo o una evaluación de scoring, asegurando un registro de auditoría inmutable e inalterable.
 
