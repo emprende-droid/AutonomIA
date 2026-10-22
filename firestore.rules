@@ -96,6 +96,31 @@ service cloud.firestore {
              data.status in ['APROBADO', 'DESAPROBADO'];
     }
 
+    // ---------------------------------------------------------------
+    // Application transitions
+    //
+    // An applicant writes to her own application in exactly three cases:
+    //   1. editing a draft                 (Draft  -> Draft)
+    //   2. submitting it                   (Draft  -> Pending)
+    //   3. attaching a payment proof on a disbursed loan (Active -> Active,
+    //      touching only the payment schedule)
+    //
+    // Everything else - approving, rejecting, disbursing, marking instalments
+    // paid, changing the requested amount after submission - is admin only.
+    // ---------------------------------------------------------------
+
+    function applicantDraftEditOrSubmit() {
+      return resource.data.status == 'Draft' &&
+             request.resource.data.status in ['Draft', 'Pending'];
+    }
+
+    function applicantPaymentProofUpdate() {
+      return resource.data.status == 'Active' &&
+             request.resource.data.status == 'Active' &&
+             request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['paymentSchedule', 'updatedAt']);
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -110,8 +135,12 @@ service cloud.firestore {
     match /applications/{applicationId} {
       allow read: if isAuthenticated() && (isAdmin() || resource == null || resource.data.userId == request.auth.uid);
       allow create: if isAuthenticated() && isValidApplication(request.resource.data) && (request.resource.data.userId == request.auth.uid || isAdmin());
-      allow update: if isAuthenticated() && 
-                    ( (resource.data.userId == request.auth.uid && request.resource.data.userId == resource.data.userId) || isAdmin() );
+      allow update: if isAuthenticated() && (
+                      isAdmin() ||
+                      ( resource.data.userId == request.auth.uid &&
+                        request.resource.data.userId == resource.data.userId &&
+                        ( applicantDraftEditOrSubmit() || applicantPaymentProofUpdate() ) )
+                    );
       allow delete: if isAdmin();
     }
 
