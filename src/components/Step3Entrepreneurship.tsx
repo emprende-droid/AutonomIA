@@ -45,6 +45,37 @@ export default function Step3Entrepreneurship({ data, onChange, settings, valida
     recalculateTotals(updated);
   };
 
+  // Seniority used to be free text ("6 años", "1 a 3 años"). It is now a number
+  // plus a unit, but the composed string stays the canonical value so existing
+  // records and everything that reads `seniority` keep working. Older free-text
+  // values are parsed where possible and otherwise left untouched until edited.
+  const parsedSeniority = (() => {
+    if (data.seniorityValue !== undefined && data.seniorityUnit) {
+      return { value: data.seniorityValue, unit: data.seniorityUnit };
+    }
+    const match = (data.seniority || "").match(/^\s*(\d+)\s*(mes|meses|año|años|anio|anios)/i);
+    if (match) {
+      const unit = /^mes/i.test(match[2]) ? 'meses' as const : 'años' as const;
+      return { value: parseInt(match[1], 10), unit };
+    }
+    return { value: undefined, unit: 'años' as const };
+  })();
+  const seniorityValue = parsedSeniority.value;
+  const seniorityUnit = parsedSeniority.unit;
+
+  const updateSeniority = (value: number | undefined, unit: 'meses' | 'años') => {
+    const composed =
+      value === undefined
+        ? ""
+        : `${value} ${value === 1 ? (unit === 'meses' ? 'mes' : 'año') : unit}`;
+    recalculateTotals({
+      ...data,
+      seniorityValue: value,
+      seniorityUnit: unit,
+      seniority: composed,
+    });
+  };
+
   const handleProductChange = (index: number, key: keyof ProductItem, val: any) => {
     const list = [...(data.products || [])];
     list[index] = { ...list[index], [key]: val };
@@ -161,16 +192,36 @@ export default function Step3Entrepreneurship({ data, onChange, settings, valida
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="seniority" className={isInvalid("entrepreneurshipData.seniority") ? "text-red-600 font-semibold" : ""}>
+            <Label htmlFor="seniorityValue" className={isInvalid("entrepreneurshipData.seniority") ? "text-red-600 font-semibold" : ""}>
               Antigüedad del negocio <span className="text-red-500 ml-0.5 font-bold">*</span>
             </Label>
-            <Input 
-              id="seniority" 
-              value={data.seniority} 
-              onChange={(e) => handleChange("seniority", e.target.value)} 
-              placeholder="Ej: 1 año y medio"
-              className={isInvalid("entrepreneurshipData.seniority") ? "border-red-500 focus-visible:ring-red-500 bg-red-50/30" : ""}
-            />
+            <div className="flex gap-2">
+              <Input
+                id="seniorityValue"
+                type="number"
+                min={0}
+                value={seniorityValue ?? ""}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  const n = raw === "" ? undefined : Math.max(0, parseInt(raw, 10) || 0);
+                  updateSeniority(n, seniorityUnit);
+                }}
+                placeholder="Ej: 18"
+                className={`flex-1 ${isInvalid("entrepreneurshipData.seniority") ? "border-red-500 focus-visible:ring-red-500 bg-red-50/30" : ""}`}
+              />
+              <Select
+                value={seniorityUnit}
+                onValueChange={(val: 'meses' | 'años') => updateSeniority(seniorityValue, val)}
+              >
+                <SelectTrigger className="w-32 shrink-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="meses">meses</SelectItem>
+                  <SelectItem value="años">años</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-2">

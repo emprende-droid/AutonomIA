@@ -99,7 +99,7 @@ const INITIAL_HOUSEHOLD_FINANCE: HouseholdFinance = {
 const INITIAL_ENTREPRENEURSHIP: EntrepreneurshipData = {
   name: "",
   activity: "",
-  seniority: "1 a 3 años",
+  seniority: "",
   description: "",
   type: "Comercial"
 };

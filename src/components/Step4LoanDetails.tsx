@@ -231,8 +231,20 @@ export default function Step4LoanDetails({ data, onChange, settings, validationE
             <SelectContent>
               <SelectItem value="Insumos">Compra de Insumos / Mercaderías</SelectItem>
               <SelectItem value="Maquinaria">Compra de Maquinaria / Bien de Capital (Herramientas)</SelectItem>
+              <SelectItem value="Otro">Otro</SelectItem>
             </SelectContent>
           </Select>
+          {data.creditUseType === "Otro" && (
+            <div className="space-y-2 pt-2">
+              <Label htmlFor="creditUseOther">Contanos en qué lo vas a usar</Label>
+              <Input
+                id="creditUseOther"
+                value={data.creditUseOther || ""}
+                onChange={(e) => handleChange("creditUseOther", e.target.value)}
+                placeholder="Ej: arreglos en el local, pago de una deuda del emprendimiento"
+              />
+            </div>
+          )}
         </div>
 
         {/* Conditional previous credit success */}

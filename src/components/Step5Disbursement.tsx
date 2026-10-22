@@ -86,7 +86,7 @@ export default function Step5Disbursement({ data, onChange, validationErrors }: 
           </div>
           <div className="flex justify-between">
             <span>Email de contacto:</span>
-            <span className="font-medium">mariano.imbrogno@gmail.com</span>
+            <span className="font-medium">camila@mujeres2000.org.ar</span>
           </div>
         </div>
       </div>

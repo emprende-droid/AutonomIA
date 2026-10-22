@@ -4,7 +4,7 @@ import { HouseholdFinance, DetailedIncomes, IncomeSource, DetailedExpenses, Expe
 import { 
   HelpCircle, User, Users, Heart, Coins, Landmark,
   Home, Bus, Smartphone, Utensils, CreditCard, Users2,
-  TrendingUp, Wifi, Droplet, Lightbulb, Flame, Award, HeartPulse
+  TrendingUp, Wifi, Droplet, Lightbulb, Flame, Award, HeartPulse, PiggyBank
 } from "lucide-react";
 
 interface Props {
@@ -127,7 +127,7 @@ export default function Step2HouseholdFinance({ data, onChange, validationErrors
           <span className="font-bold text-sm text-indigo-900">¿Cómo completar tus ingresos mensuales?</span>
         </div>
         <p className="text-slate-600">
-          Por favor, ingresa los montos mensuales estimados que aporta cada miembro o beneficio al hogar. Selecciona <strong>SÍ</strong> si es un ingreso fijo y recurrente o <strong>NO</strong> si es informal o variable.
+          Registrá acá los ingresos mensuales del hogar que <strong>no provienen del emprendimiento</strong>: sueldos, changas, jubilaciones, planes y aportes de otros miembros. Las ventas del emprendimiento se cargan en el paso siguiente, así que no hay que repetirlas acá. Seleccioná <strong>SÍ</strong> si el ingreso es fijo y recurrente, o <strong>NO</strong> si es informal o variable.
         </p>
       </div>
 
@@ -181,7 +181,7 @@ export default function Step2HouseholdFinance({ data, onChange, validationErrors
                 </div>
                 <div>
                   <span className="font-bold text-slate-800 text-sm">Destinataria (Tú)</span>
-                  <p className="text-2xs text-slate-500">Tus ingresos laborales, de autoempleo o ventas</p>
+                  <p className="text-2xs text-slate-500">Sueldos o changas por fuera del emprendimiento. No incluyas las ventas del emprendimiento.</p>
                 </div>
               </div>
               <div className="col-span-12 sm:col-span-7 md:col-span-4">
@@ -505,6 +505,34 @@ export default function Step2HouseholdFinance({ data, onChange, validationErrors
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* 7. Ahorros - contexto, no es un ingreso */}
+          <div className="border border-slate-200 rounded-xl p-3 md:p-2.5 bg-white hover:border-indigo-300 transition-colors shadow-2xs">
+            <div className="grid grid-cols-12 gap-y-2.5 gap-x-4 items-center">
+              <div className="col-span-12 md:col-span-5 flex items-center gap-2.5">
+                <div className="bg-emerald-50 p-2 rounded-lg text-emerald-700 shrink-0">
+                  <PiggyBank className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-slate-800 text-sm">Ahorros</span>
+                  <p className="text-2xs text-slate-500">Monto disponible ahorrado. No se cuenta como ingreso mensual.</p>
+                </div>
+              </div>
+              <div className="col-span-12 sm:col-span-7 md:col-span-4">
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-semibold">$</span>
+                  <Input
+                    type="number"
+                    value={data.savings || ""}
+                    onChange={(e) => onChange({ ...data, savings: parseFloat(e.target.value) || 0 })}
+                    placeholder="0"
+                    className="pl-6 h-9 focus-visible:ring-emerald-500 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="col-span-12 sm:col-span-5 md:col-span-3" />
             </div>
           </div>
 
