@@ -350,3 +350,65 @@ describe("the flows admins legitimately need", () => {
     );
   });
 });
+
+describe("creating an application", () => {
+  // Mirrors INITIAL_DATA in src/App.tsx — the exact shape the app writes when
+  // an applicant starts a new request. Earlier tests seeded documents directly,
+  // which meant the create path was never exercised against a real payload.
+  function newApplicationPayload(overrides: Record<string, unknown> = {}) {
+    return {
+      id: "new-app",
+      userId: ANA,
+      userEmail: "ana@example.com",
+      status: "Draft",
+      step: 1,
+      personalData: { lastName: "", firstName: "", cuil: "", dni: "" },
+      householdFinance: {},
+      entrepreneurshipData: {},
+      loanDetails: {},
+      disbursementInfo: {},
+      createdAt: iso("2026-03-01"),
+      updatedAt: iso("2026-03-01"),
+      ...overrides,
+    };
+  }
+
+  it("lets an applicant create her own application", async () => {
+    await assertSucceeds(
+      setDoc(doc(asAna(), "applications", "new-app"), newApplicationPayload()),
+    );
+  });
+
+  it("stops an applicant creating an application owned by someone else", async () => {
+    await assertFails(
+      setDoc(doc(asBea(), "applications", "new-app"), newApplicationPayload()),
+    );
+  });
+
+  it("stops an unauthenticated visitor creating an application", async () => {
+    await assertFails(
+      setDoc(doc(asAnon(), "applications", "new-app"), newApplicationPayload()),
+    );
+  });
+
+  it("stops creation of an application already marked Approved", async () => {
+    await assertFails(
+      setDoc(
+        doc(asAna(), "applications", "new-app"),
+        newApplicationPayload({ status: "Approved" }),
+      ),
+    );
+  });
+
+  // A guest signs in with signInAnonymously, so user.email is null and App.tsx
+  // writes userEmail: "". isValidApplication requires a well-formed address.
+  it("stops a guest with no email address creating an application", async () => {
+    const guest = testEnv.authenticatedContext("guest-uid").firestore();
+    await assertFails(
+      setDoc(
+        doc(guest, "applications", "new-app"),
+        newApplicationPayload({ userId: "guest-uid", userEmail: "" }),
+      ),
+    );
+  });
+});

@@ -134,7 +134,14 @@ service cloud.firestore {
 
     match /applications/{applicationId} {
       allow read: if isAuthenticated() && (isAdmin() || resource == null || resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && isValidApplication(request.resource.data) && (request.resource.data.userId == request.auth.uid || isAdmin());
+      // An applicant may only open an application in a pre-approval state.
+      // Without this she could skip the whole workflow by creating one that is
+      // already Approved or Active.
+      allow create: if isAuthenticated() && isValidApplication(request.resource.data) && (
+                      isAdmin() ||
+                      ( request.resource.data.userId == request.auth.uid &&
+                        request.resource.data.status in ['Draft', 'Pending'] )
+                    );
       allow update: if isAuthenticated() && (
                       isAdmin() ||
                       ( resource.data.userId == request.auth.uid &&
