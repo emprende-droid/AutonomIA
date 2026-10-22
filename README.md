@@ -28,14 +28,14 @@ La plataforma está diseñada siguiendo el patrón de **Single Page Application 
   * **Recharts / D3**: Visualización interactiva de estadísticas de créditos y cobrabilidad en la consola de administración.
 * **Backend (API)**:
   * **Express (Node.js)**: Usado en desarrollo local (`npm run dev`) para servir la SPA junto al middleware de Vite y exponer las rutas de API.
-  * **Vercel Serverless Functions**: En producción, la lógica de las rutas de API (`/api/upload-signature`, `/api/chat`) se despliega como funciones serverless independientes bajo el directorio `api/`, compartiendo la misma implementación que usa el servidor Express local (`lib/server/`). Los secretos de infraestructura (Cloudinary, Gemini) nunca se exponen al cliente.
+  * **Vercel Serverless Functions**: En producción, la lógica de las rutas de API (`/api/upload-signature`) se despliega como funciones serverless independientes bajo el directorio `api/`, compartiendo la misma implementación que usa el servidor Express local (`lib/server/`). Los secretos de infraestructura (Cloudinary) nunca se exponen al cliente.
 * **Base de Datos y Autenticación**:
   * **Firebase Authentication**: Gestión de sesiones de usuaria, registros, accesos de administración y generación de tokens JWT.
   * **Cloud Firestore**: Base de datos NoSQL de documentos en tiempo real.
   * **Firebase Storage**: Almacenamiento seguro de archivos (como comprobantes de pago subidos por las emprendedoras).
 
 ### Decisiones de Arquitectura Recientes:
-1. **Desactivación del Asistente Virtual Gemini (Mumi)**: Se ha removido el componente del chat interactivo con IA de la interfaz principal para eliminar la dependencia de claves de API externas (`GEMINI_API_KEY`) y mitigar costos operativos para la organización.
+1. **Eliminación del Asistente Virtual Gemini (Mumi)**: Se eliminó por completo el chat interactivo con IA, junto con su endpoint, su dependencia (`@google/genai`) y la clave `GEMINI_API_KEY`. Elimina una dependencia de un servicio externo pago y un endpoint sin autenticación.
 2. **Eliminación de Carga de PII (Fotos del DNI)**: Se removió la sección que requería cargar fotos del frente y dorso del Documento Nacional de Identidad (DNI) de las emprendedoras en el formulario de registro. Esto simplifica el proceso de postulación, ahorra espacio en base de datos, agiliza la carga en conexiones lentas y reduce riesgos asociados a la privacidad de datos personales sensibles (PII).
 
 ---
@@ -68,9 +68,6 @@ Este archivo debe crearse en la raíz del proyecto para alojar secretos de servi
 CLOUDINARY_CLOUD_NAME=tu_cloud_name
 CLOUDINARY_API_KEY=tu_api_key
 CLOUDINARY_API_SECRET=tu_api_secret
-
-# Gemini API Key (Opcional - Deprecado)
-GEMINI_API_KEY=tu_gemini_key
 ```
 
 ### B. Archivo `firebase-applet-config.json`
@@ -126,7 +123,7 @@ Sigue estos pasos para levantar un entorno de desarrollo local limpio y 100% gra
    La aplicación está pensada para desplegarse en [Vercel](https://vercel.com):
    * `npm run build` compila los assets de frontend (React + Tailwind CSS) en la carpeta `dist/`, que Vercel detecta y sirve automáticamente como sitio estático.
    * Las rutas bajo `api/` (`upload-signature.ts`, `chat.ts`) se despliegan automáticamente como funciones serverless — no requieren un paso de build aparte.
-   * Configura las variables de entorno (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `GEMINI_API_KEY`) en el panel de **Settings → Environment Variables** del proyecto en Vercel.
+   * Configura las variables de entorno (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`) en el panel de **Settings → Environment Variables** del proyecto en Vercel.
 
 ---
 

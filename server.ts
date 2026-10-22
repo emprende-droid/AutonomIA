@@ -3,7 +3,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { handleUploadSignature } from "./lib/server/cloudinary";
-import { handleChat } from "./lib/server/chat";
 
 const _filename = typeof __filename !== "undefined" ? __filename : fileURLToPath(import.meta.url);
 const _dirname = typeof __dirname !== "undefined" ? __dirname : path.dirname(_filename);
@@ -17,9 +16,6 @@ async function startServer() {
   // API Route to get a signed Cloudinary upload signature (the file itself
   // is uploaded directly from the browser to Cloudinary, not through here)
   app.post("/api/upload-signature", handleUploadSignature);
-
-  // API Route for AI Assistant Chat
-  app.post("/api/chat", handleChat);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

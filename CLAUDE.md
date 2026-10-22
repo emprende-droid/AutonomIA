@@ -50,10 +50,9 @@ Things that have already cost time and are not visible from reading the code:
   `App.tsx` therefore fails silently for regular applicants, so two submissions can
   receive the same number.
 - **Dates are plain ISO strings**, not Firestore `Timestamp` objects. Keep it that way.
-- **`storage.rules` is wide open** (`allow read, write: if true`) but nothing uses
-  Firebase Storage. Locking it down breaks nothing.
-- **The AI chat is dead code.** `AIAssistantChat` is not mounted anywhere, so
-  `/api/chat` is unreachable from the UI.
+- **Firebase Storage is not used and not enabled.** Uploads go to Cloudinary.
+  `storage.rules` denies everything; if Storage is ever adopted, write real
+  rules and tests before deploying.
 - **A `gestor` role exists in production data** but no code path recognises it.
   Every role check is `=== 'admin'`.
 - **Business rules live only in the frontend.** Firestore rules validate shape on
