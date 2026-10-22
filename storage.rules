@@ -1,11 +1,21 @@
 rules_version = '2';
 
+// This project does not use Firebase Storage. Uploads go to Cloudinary via
+// api/upload-signature.ts, and the Cloud Storage for Firebase API is not
+// enabled on prestamos-mujeres2000.
+//
+// The file previously granted read and write to anyone on the internet. It had
+// never been deployed, so it was not a live exposure, but it was waiting to
+// become one the moment Storage was enabled or someone ran an unscoped
+// `firebase deploy`.
+//
+// Denying everything is the safe default. If Storage is ever adopted, replace
+// this with rules scoped to the authenticated owner of each path, and add tests
+// alongside tests/firestore.rules.test.ts before deploying.
 service firebase.storage {
   match /b/{bucket}/o {
     match /{allPaths=**} {
-      // Allow read/write access to all users for now to ensure functionality
-      // In a production app, you'd want to restrict this based on auth
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }
